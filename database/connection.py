@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+import pandas as pd
+
 from utils.timeutil import now_utc
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -76,3 +78,25 @@ def log_transaction(conn: sqlite3.Connection, action_type: str, metal: str,
          execution_rate_myr, mass_grams, fiat_total_myr),
     )
     return tx_id
+
+
+_MATRIX_COLUMNS = ["date", "gold_rate_per_oz", "silver_rate_per_oz"]
+
+
+def fetch_historical_matrix(conn: sqlite3.Connection,
+                            limit_days: int | None = None) -> pd.DataFrame:
+    """Return spot-price time series as a DataFrame, ascending by date.
+
+    `limit_days` keeps the most recent N rows.
+    """
+    query = (
+        "SELECT date, gold_rate_per_oz, silver_rate_per_oz "
+        "FROM spot_prices ORDER BY date DESC"
+    )
+    params: tuple = ()
+    if limit_days is not None:
+        query += " LIMIT ?"
+        params = (limit_days,)
+    rows = conn.execute(query, params).fetchall()
+    df = pd.DataFrame([dict(r) for r in rows], columns=_MATRIX_COLUMNS)
+    return df.sort_values("date").reset_index(drop=True)
