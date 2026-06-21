@@ -8,6 +8,11 @@ def test_foreign_keys_enabled(db_conn):
     assert fk == 1
 
 
+def test_busy_timeout_set(db_conn):
+    timeout = db_conn.execute("PRAGMA busy_timeout;").fetchone()[0]
+    assert timeout == 5000
+
+
 def test_all_tables_created(db_conn):
     rows = db_conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table';"

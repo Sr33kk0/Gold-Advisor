@@ -32,6 +32,9 @@ def get_db_connection(db_path: str | None = None) -> Iterator[sqlite3.Connection
     """Yield a WAL-enabled SQLite connection with the schema applied.
 
     Commits on clean exit, rolls back on exception, always closes.
+
+    Note: executescript() issues an implicit COMMIT, so the schema is committed
+    before the caller's transaction scope begins.
     """
     path = _resolve_db_path(db_path)
     parent = os.path.dirname(path)
@@ -43,6 +46,7 @@ def get_db_connection(db_path: str | None = None) -> Iterator[sqlite3.Connection
     try:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
+        conn.execute("PRAGMA busy_timeout=5000;")
         conn.executescript(_SCHEMA_PATH.read_text())
         yield conn
         conn.commit()
@@ -141,7 +145,7 @@ def get_setting(conn: sqlite3.Connection, key: str,
         "SELECT config_value FROM system_settings WHERE config_key=?;",
         (key,),
     ).fetchone()
-    return row[0] if row is not None else default
+    return row["config_value"] if row is not None else default
 
 
 def seed_default_settings(conn: sqlite3.Connection) -> None:
