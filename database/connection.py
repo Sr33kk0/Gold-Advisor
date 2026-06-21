@@ -11,6 +11,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+from utils.timeutil import now_utc
+
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 
@@ -45,3 +47,14 @@ def get_db_connection(db_path: str | None = None) -> Iterator[sqlite3.Connection
         raise
     finally:
         conn.close()
+
+
+def write_spot_prices(conn: sqlite3.Connection, date: str,
+                      gold: float, silver: float) -> None:
+    """Upsert a daily spot-price row (keyed on date)."""
+    conn.execute(
+        "INSERT OR REPLACE INTO spot_prices "
+        "(date, gold_rate_per_oz, silver_rate_per_oz, fetched_at) "
+        "VALUES (?, ?, ?, ?);",
+        (date, gold, silver, now_utc().isoformat()),
+    )
