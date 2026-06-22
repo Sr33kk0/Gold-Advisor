@@ -1,5 +1,3 @@
-import pytest
-
 from analytics.signals import generate_trade_signal
 
 

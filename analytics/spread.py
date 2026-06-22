@@ -58,7 +58,7 @@ def effective_spread(derived: float | None, fallback: float,
 
 
 def platform_rates(spot_today_per_gram: float, eff_buy_spread: float,
-                   eff_sell_spread: float) -> dict:
+                   eff_sell_spread: float) -> dict[str, float]:
     """Current platform buy/sell rates from spot plus asymmetric spreads."""
     return {
         "buy": spot_today_per_gram + eff_buy_spread,
@@ -79,7 +79,7 @@ def spot_on_or_before(spot_per_gram: pd.Series, date: str) -> float | None:
 
 def compute_side_spread(trades: pd.DataFrame, spot_per_gram: pd.Series, side: str,
                         *, fallback: float, alpha_days: float, tau_days: float,
-                        now: datetime) -> dict:
+                        now: datetime) -> dict[str, float | int | None]:
     """Effective per-gram spread for one side from the full (decayed) history."""
     side_trades = trades[trades["action_type"] == side]
 

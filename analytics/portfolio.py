@@ -8,7 +8,7 @@ single metal before calling.
 import pandas as pd
 
 
-def calculate_cost_basis(trades: pd.DataFrame, epsilon: float = 1e-9) -> dict:
+def calculate_cost_basis(trades: pd.DataFrame, epsilon: float = 1e-9) -> dict[str, float | bool]:
     """Walk trades chronologically; return the current open position's basis.
 
     Returns {"holding_grams", "cost_basis", "oversell_flagged"}. Average-cost:

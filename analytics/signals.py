@@ -12,7 +12,7 @@ def generate_trade_signal(*, rsi: float, percent_b: float, gsr: float,
                           sentiment_age_days: float | None,
                           rsi_oversold: float, rsi_overbought: float,
                           quant_vote_threshold: int,
-                          sentiment_max_age_days: float) -> dict:
+                          sentiment_max_age_days: float) -> dict[str, object]:
     """Fuse quant indicators + sentiment into BUY/SELL/HOLD with a breakdown."""
     reasons: list[str] = []
 
