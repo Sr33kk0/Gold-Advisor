@@ -1,7 +1,9 @@
+import numpy as np
 import pandas as pd
 import pytest
 
 from analytics.quantitative import compute_gold_silver_ratio
+from analytics.quantitative import compute_relative_strength_index
 
 
 def test_gsr_elementwise_ratio():
@@ -19,3 +21,25 @@ def test_gsr_preserves_length_and_index():
     assert len(gsr) == 3
     assert list(gsr.index) == [10, 11, 12]
     assert gsr.iloc[-1] == pytest.approx(88.0)
+
+
+def test_rsi_all_gains_approaches_100():
+    price = pd.Series([float(i) for i in range(1, 31)])  # strictly increasing
+    rsi = compute_relative_strength_index(price, period=14)
+    assert rsi.iloc[-1] == pytest.approx(100.0)
+
+
+def test_rsi_all_losses_approaches_0():
+    price = pd.Series([float(i) for i in range(30, 0, -1)])  # strictly decreasing
+    rsi = compute_relative_strength_index(price, period=14)
+    assert rsi.iloc[-1] == pytest.approx(0.0)
+
+
+def test_rsi_bounded_and_length_preserved():
+    rng = np.random.default_rng(42)
+    price = pd.Series(100.0 + np.cumsum(rng.standard_normal(100)))
+    rsi = compute_relative_strength_index(price, period=14)
+    assert len(rsi) == len(price)
+    valid = rsi.dropna()
+    assert (valid >= 0.0).all()
+    assert (valid <= 100.0).all()
