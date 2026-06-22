@@ -18,6 +18,9 @@ import pandas as pd
 from utils.timeutil import now_utc
 
 _SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+# Read the (static) schema once at import; re-applied per connection for the
+# multi-container boot race, but without re-hitting disk every time.
+_SCHEMA_SQL = _SCHEMA_PATH.read_text()
 
 
 def _resolve_db_path(db_path: str | None) -> str:
@@ -47,7 +50,7 @@ def get_db_connection(db_path: str | None = None) -> Iterator[sqlite3.Connection
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
         conn.execute("PRAGMA busy_timeout=5000;")
-        conn.executescript(_SCHEMA_PATH.read_text())
+        conn.executescript(_SCHEMA_SQL)
         yield conn
         conn.commit()
     except Exception:
@@ -149,10 +152,16 @@ def get_setting(conn: sqlite3.Connection, key: str,
 
 
 def seed_default_settings(conn: sqlite3.Connection) -> None:
-    """Insert each default only if its key is absent (never overwrites)."""
-    for key, value in DEFAULT_SETTINGS.items():
-        if get_setting(conn, key) is None:
-            set_setting(conn, key, value)
+    """Insert each default only if its key is absent (never overwrites).
+
+    INSERT OR IGNORE skips rows whose config_key (PRIMARY KEY) already exists,
+    so this is a single batch write rather than a per-key SELECT + INSERT.
+    """
+    conn.executemany(
+        "INSERT OR IGNORE INTO system_settings (config_key, config_value) "
+        "VALUES (?, ?);",
+        DEFAULT_SETTINGS.items(),
+    )
 
 
 def write_sentiment_snapshot(conn: sqlite3.Connection, date: str,

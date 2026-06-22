@@ -25,6 +25,10 @@ _DEFAULT_TZ = "Asia/Kuala_Lumpur"
 # Intra-window retry backoff (seconds) before falling back to the next window.
 RETRY_BACKOFFS_SECONDS = (30.0, 120.0, 480.0)
 
+# Guard added to each scheduled sleep so an early-returning time.sleep still
+# lands past the window boundary, avoiding a same-window double-fire.
+WINDOW_GUARD_PAD_SECONDS = 1.0
+
 
 def sleep_until_next_window(now: datetime | None = None,
                             tz_name: str | None = None) -> float:
@@ -81,7 +85,7 @@ def initialize_background_daemon(*, max_cycles: int | None = None,
                 run_daily_cycle(conn, api_key)
         except Exception:
             logger.exception("Daily cycle setup failed (DB open/seed); daemon continues")
-        sleep_fn(sleep_until_next_window())
+        sleep_fn(sleep_until_next_window() + WINDOW_GUARD_PAD_SECONDS)
         cycles += 1
 
 
