@@ -43,3 +43,30 @@ def test_rsi_bounded_and_length_preserved():
     valid = rsi.dropna()
     assert (valid >= 0.0).all()
     assert (valid <= 100.0).all()
+
+
+from analytics.quantitative import compute_volatility_bands
+
+
+def test_bands_constant_series_collapse():
+    price = pd.Series([10.0] * 5)
+    bands = compute_volatility_bands(price, window=3, deviations=2.0)
+    assert bands["middle"].iloc[-1] == pytest.approx(10.0)
+    assert bands["upper"].iloc[-1] == pytest.approx(10.0)
+    assert bands["lower"].iloc[-1] == pytest.approx(10.0)
+
+
+def test_percent_b_is_half_when_price_equals_mean():
+    # window of [3, 1, 2]: mean == 2 == last price -> %B == 0.5
+    price = pd.Series([3.0, 1.0, 2.0])
+    bands = compute_volatility_bands(price, window=3, deviations=2.0)
+    assert bands["percent_b"].iloc[-1] == pytest.approx(0.5)
+
+
+def test_bands_widen_with_more_deviations():
+    price = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+    one = compute_volatility_bands(price, window=3, deviations=1.0)
+    two = compute_volatility_bands(price, window=3, deviations=2.0)
+    width_one = one["upper"].iloc[-1] - one["lower"].iloc[-1]
+    width_two = two["upper"].iloc[-1] - two["lower"].iloc[-1]
+    assert width_two > width_one
