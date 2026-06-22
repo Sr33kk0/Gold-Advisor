@@ -1,10 +1,12 @@
 import math
+from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
 
 from analytics.spread import (
     GRAMS_PER_TROY_OZ,
+    compute_side_spread,
     effective_spread,
     per_gram,
     platform_rates,
@@ -86,3 +88,60 @@ def test_recency_weighted_mean_nonpositive_alpha_raises():
 def test_staleness_weight_nonpositive_tau_raises():
     with pytest.raises(ValueError):
         staleness_weight(0.0, 0.0)
+
+
+def _spot():
+    return pd.Series({"2026-06-22": 100.0})
+
+
+def test_side_spread_no_trades_falls_back():
+    trades = pd.DataFrame(
+        columns=["timestamp", "action_type", "execution_rate_myr"]
+    )
+    now = datetime(2026, 6, 22, 9, 0, tzinfo=timezone.utc)
+    res = compute_side_spread(trades, _spot(), "BUY",
+                              fallback=2.0, alpha_days=30.0, tau_days=30.0, now=now)
+    assert res["n_trades"] == 0
+    assert res["derived_spread"] is None
+    assert res["staleness_weight"] == pytest.approx(0.0)
+    assert res["effective_spread"] == pytest.approx(2.0)
+
+
+def test_side_spread_single_fresh_trade_equals_realized():
+    trades = pd.DataFrame([
+        {"timestamp": "2026-06-22T09:00:00+00:00",
+         "action_type": "BUY", "execution_rate_myr": 105.0},
+    ])
+    now = datetime(2026, 6, 22, 9, 0, tzinfo=timezone.utc)  # same instant -> w=1
+    res = compute_side_spread(trades, _spot(), "BUY",
+                              fallback=2.0, alpha_days=30.0, tau_days=30.0, now=now)
+    assert res["n_trades"] == 1
+    assert res["derived_spread"] == pytest.approx(5.0)      # 105 - 100
+    assert res["staleness_weight"] == pytest.approx(1.0)
+    assert res["effective_spread"] == pytest.approx(5.0)
+
+
+def test_side_spread_stale_trade_blends_toward_fallback():
+    trades = pd.DataFrame([
+        {"timestamp": "2026-06-22T09:00:00+00:00",
+         "action_type": "BUY", "execution_rate_myr": 105.0},
+    ])
+    # 30 days later, tau=30 -> w = exp(-1) ~= 0.367879
+    now = datetime(2026, 7, 22, 9, 0, tzinfo=timezone.utc)
+    res = compute_side_spread(trades, _spot(), "BUY",
+                              fallback=2.0, alpha_days=30.0, tau_days=30.0, now=now)
+    # eff = 0.367879*5 + 0.632121*2 = 3.103642
+    assert res["staleness_weight"] == pytest.approx(math.exp(-1.0), abs=1e-6)
+    assert res["effective_spread"] == pytest.approx(3.103642, abs=1e-4)
+
+
+def test_side_spread_ignores_other_side():
+    trades = pd.DataFrame([
+        {"timestamp": "2026-06-22T09:00:00+00:00",
+         "action_type": "SELL", "execution_rate_myr": 95.0},
+    ])
+    now = datetime(2026, 6, 22, 9, 0, tzinfo=timezone.utc)
+    res = compute_side_spread(trades, _spot(), "BUY",
+                              fallback=2.0, alpha_days=30.0, tau_days=30.0, now=now)
+    assert res["n_trades"] == 0
+    assert res["effective_spread"] == pytest.approx(2.0)

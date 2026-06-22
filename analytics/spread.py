@@ -6,6 +6,7 @@ trade history (recency-decayed) and never resets on liquidation.
 """
 
 import math
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -74,3 +75,36 @@ def spot_on_or_before(spot_per_gram: pd.Series, date: str) -> float | None:
     if prior.empty:
         return None
     return float(prior.iloc[-1])
+
+
+def compute_side_spread(trades: pd.DataFrame, spot_per_gram: pd.Series, side: str,
+                        *, fallback: float, alpha_days: float, tau_days: float,
+                        now: datetime) -> dict:
+    """Effective per-gram spread for one side from the full (decayed) history."""
+    side_trades = trades[trades["action_type"] == side]
+
+    realized: list[float] = []
+    timestamps: list[datetime] = []
+    for _, row in side_trades.iterrows():
+        ts_str = str(row["timestamp"])
+        spot = spot_on_or_before(spot_per_gram, ts_str[:10])
+        if spot is None:  # no spot on/before trade date -> skip from derivation
+            continue
+        realized.append(realized_spread(float(row["execution_rate_myr"]), spot, side))
+        timestamps.append(datetime.fromisoformat(ts_str))
+
+    if not realized:
+        return {"effective_spread": fallback, "derived_spread": None,
+                "staleness_weight": 0.0, "n_trades": 0}
+
+    t_latest = max(timestamps)
+    ages = [(t_latest - t).total_seconds() / 86400.0 for t in timestamps]
+    derived = recency_weighted_mean(realized, ages, alpha_days)
+    latest_age = (now - t_latest).total_seconds() / 86400.0
+    w = staleness_weight(latest_age, tau_days)
+    return {
+        "effective_spread": effective_spread(derived, fallback, w),
+        "derived_spread": derived,
+        "staleness_weight": w,
+        "n_trades": len(realized),
+    }
