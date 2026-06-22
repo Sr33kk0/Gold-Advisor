@@ -38,3 +38,33 @@ def run_daily_cycle(conn, api_key: str) -> None:
         logger.info("Price ingestion succeeded: %s", rates)
     except Exception:
         logger.exception("Price ingestion failed; daemon continues")
+
+
+def _require_env(name: str) -> str:
+    """Return a required environment variable or raise RuntimeError."""
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"Required environment variable {name} is not set")
+    return value
+
+
+def initialize_background_daemon(*, max_cycles: int | None = None,
+                                 sleep_fn=time.sleep) -> None:
+    """Verify prerequisites, then loop: ingest then sleep until next window."""
+    api_key = _require_env("COMMODITY_API_KEY")
+    logger.info("Worker daemon starting")
+    cycles = 0
+    while max_cycles is None or cycles < max_cycles:
+        with get_db_connection() as conn:
+            seed_default_settings(conn)
+            run_daily_cycle(conn, api_key)
+        sleep_fn(sleep_until_next_window())
+        cycles += 1
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    initialize_background_daemon()
