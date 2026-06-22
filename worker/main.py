@@ -9,6 +9,7 @@ window. Scheduling and cycle functions accept injected `now`/`sleep_fn`/
 import logging
 import os
 import time
+from collections.abc import Callable
 from datetime import datetime
 
 from database.connection import get_db_connection, seed_default_settings
@@ -49,7 +50,7 @@ def _require_env(name: str) -> str:
 
 
 def initialize_background_daemon(*, max_cycles: int | None = None,
-                                 sleep_fn=time.sleep) -> None:
+                                 sleep_fn: Callable[[float], None] = time.sleep) -> None:
     """Verify prerequisites, then loop: ingest then sleep until next window."""
     api_key = _require_env("COMMODITY_API_KEY")
     logger.info("Worker daemon starting")

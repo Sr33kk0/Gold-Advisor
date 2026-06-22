@@ -1,7 +1,9 @@
 import logging
 
+import pytest
+
 from worker import main
-from worker.main import run_daily_cycle
+from worker.main import initialize_background_daemon, run_daily_cycle
 
 
 def test_run_daily_cycle_swallows_pipeline_errors(db_conn, monkeypatch, caplog):
@@ -21,11 +23,6 @@ def test_run_daily_cycle_success_invokes_pipeline(db_conn, monkeypatch):
     monkeypatch.setattr(main, "execute_ingestion_pipeline", ok)
     run_daily_cycle(db_conn, "KEY")
     assert calls == ["KEY"]
-
-
-import pytest
-
-from worker.main import initialize_background_daemon
 
 
 def test_missing_api_key_raises(monkeypatch):
