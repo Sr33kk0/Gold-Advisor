@@ -46,3 +46,24 @@ def build_sentiment_prompt(headlines: list[dict[str, str]],
         '  "dominant_risk_factor": a short string naming the key risk,\n'
         '  "analytical_summary": a one or two sentence rationale.\n'
     )
+
+
+def parse_sentiment_response(raw_text: str) -> dict:
+    """Parse + validate the model's JSON; clamp score to [-5, 5].
+
+    Raises ValueError on malformed JSON, missing keys, or a non-numeric score.
+    """
+    data = json.loads(raw_text)  # JSONDecodeError is a ValueError subclass
+    if "dominant_risk_factor" not in data or "analytical_summary" not in data:
+        raise ValueError("sentiment response missing required key(s)")
+    try:
+        score = float(data["sentiment_score"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"invalid sentiment_score: {exc}") from exc
+    score = max(SENTIMENT_SCORE_MIN, min(SENTIMENT_SCORE_MAX, score))
+    return {
+        "sentiment_score": score,
+        "dominant_risk_factor": str(data["dominant_risk_factor"]),
+        "analytical_summary": str(data["analytical_summary"]),
+        "failed": False,
+    }
