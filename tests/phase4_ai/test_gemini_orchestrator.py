@@ -66,3 +66,46 @@ def test_non_numeric_score_raises():
 def test_bad_json_raises():
     with pytest.raises(ValueError):
         parse_sentiment_response("not json at all")
+
+
+from ai.gemini_orchestrator import generate_sentiment_inference
+
+
+def test_inference_success_returns_parsed():
+    captured = {}
+
+    def fake_fn(prompt):
+        captured["prompt"] = prompt
+        return ('{"sentiment_score": 3, "dominant_risk_factor": "CPI", '
+                '"analytical_summary": "Hot CPI lifts safe-haven demand."}')
+
+    out = generate_sentiment_inference(
+        [{"title": "CPI surprises high", "link": "u1"}], {"rsi": 28.0},
+        api_key="KEY", generate_content_fn=fake_fn)
+    assert out["failed"] is False
+    assert out["sentiment_score"] == pytest.approx(3.0)
+    assert "CPI surprises high" in captured["prompt"]   # prompt actually built + passed
+
+
+def test_inference_api_error_returns_neutral():
+    def boom(prompt):
+        raise RuntimeError("gemini 503")
+
+    out = generate_sentiment_inference([], None, api_key="KEY", generate_content_fn=boom)
+    assert out["failed"] is True
+    assert out["sentiment_score"] == pytest.approx(0.0)
+    assert out["dominant_risk_factor"] == "UNKNOWN"
+
+
+def test_inference_bad_payload_returns_neutral():
+    out = generate_sentiment_inference(
+        [], None, api_key="KEY", generate_content_fn=lambda p: "<<not json>>")
+    assert out["failed"] is True
+
+
+def test_inference_does_not_mutate_neutral_constant():
+    from ai import gemini_orchestrator
+    out = generate_sentiment_inference([], None, api_key="KEY",
+                                       generate_content_fn=lambda p: "bad")
+    out["sentiment_score"] = 4.0  # mutate the returned copy
+    assert gemini_orchestrator.NEUTRAL_RESULT["sentiment_score"] == 0.0  # constant intact

@@ -10,6 +10,7 @@ declines to persist it, preserving the Phase 3 staleness fail-safe (Rule 3).
 
 import json
 import logging
+from collections.abc import Callable
 
 logger = logging.getLogger("ai")
 
@@ -67,3 +68,37 @@ def parse_sentiment_response(raw_text: str) -> dict:
         "analytical_summary": str(data["analytical_summary"]),
         "failed": False,
     }
+
+
+def _default_generate_content(prompt: str, *, api_key: str, model_name: str) -> str:
+    """Live Gemini call. Imported lazily so the SDK is only needed at runtime."""
+    import google.generativeai as genai
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(model_name)
+    response = model.generate_content(
+        prompt,
+        generation_config={"response_mime_type": "application/json"},
+    )
+    return response.text
+
+
+def generate_sentiment_inference(
+    headlines: list[dict[str, str]],
+    market_metrics: dict[str, float] | None = None,
+    *,
+    api_key: str,
+    model_name: str = "gemini-2.0-flash",
+    generate_content_fn: Callable[[str], str] | None = None,
+) -> dict:
+    """Infer structured gold sentiment. Never raises; neutral fallback on error."""
+    try:
+        prompt = build_sentiment_prompt(headlines, market_metrics or {})
+        if generate_content_fn is None:
+            def generate_content_fn(p: str) -> str:
+                return _default_generate_content(p, api_key=api_key, model_name=model_name)
+        raw = generate_content_fn(prompt)
+        return parse_sentiment_response(raw)
+    except Exception:
+        logger.exception("Sentiment inference failed; returning neutral result")
+        return dict(NEUTRAL_RESULT)
