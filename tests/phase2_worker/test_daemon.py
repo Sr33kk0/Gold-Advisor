@@ -39,6 +39,7 @@ def test_runs_bounded_cycles_with_injected_sleep(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "run_daily_cycle",
                         lambda conn, api_key: cycles.__setitem__("n", cycles["n"] + 1))
     monkeypatch.setattr(main, "sleep_until_next_window", lambda: 0.0)
+    monkeypatch.setattr(main, "run_sentiment_cycle", lambda conn: None)
     initialize_background_daemon(max_cycles=3, sleep_fn=sleeps.append)
     assert cycles["n"] == 3
     assert sleeps == [1.0, 1.0, 1.0]   # 0.0 stub + 1s window-crossing guard
@@ -95,6 +96,7 @@ def test_daemon_pads_sleep_past_window_boundary(monkeypatch, tmp_path):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr(main, "run_daily_cycle", lambda conn, api_key: None)
     monkeypatch.setattr(main, "sleep_until_next_window", lambda: 3600.0)
+    monkeypatch.setattr(main, "run_sentiment_cycle", lambda conn: None)
     sleeps = []
     initialize_background_daemon(max_cycles=1, sleep_fn=sleeps.append)
     assert sleeps == [3601.0]   # 3600s until window + 1s crossing guard

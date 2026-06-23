@@ -12,9 +12,14 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 
-from database.connection import get_db_connection, seed_default_settings
+from database.connection import (
+    fetch_historical_matrix,
+    get_db_connection,
+    seed_default_settings,
+)
 from utils.timeutil import next_local_time_utc, now_utc
 from worker.api_client import execute_ingestion_pipeline
+from worker.sentiment_pipeline import execute_sentiment_pipeline
 
 logger = logging.getLogger("worker")
 
@@ -64,6 +69,36 @@ def run_daily_cycle(conn, api_key: str, *, sleep_fn=time.sleep) -> bool:
     return False
 
 
+def _latest_market_metrics(conn) -> dict[str, float]:
+    """Lightweight quant context for the sentiment prompt from the latest spot row."""
+    df = fetch_historical_matrix(conn, limit_days=1)
+    if df.empty:
+        return {}
+    row = df.iloc[-1]
+    gold = float(row["gold_rate_per_oz"])
+    silver = float(row["silver_rate_per_oz"])
+    metrics = {"gold_rate_per_oz": gold, "silver_rate_per_oz": silver}
+    if silver > 0:
+        metrics["gold_silver_ratio"] = gold / silver
+    return metrics
+
+
+def run_sentiment_cycle(conn) -> None:
+    """Best-effort sentiment ingestion; skip cleanly if unconfigured. Never raises."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        logger.info("GEMINI_API_KEY not set; skipping sentiment cycle")
+        return
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    try:
+        execute_sentiment_pipeline(
+            conn, api_key=api_key, model_name=model_name,
+            market_metrics=_latest_market_metrics(conn),
+        )
+    except Exception:
+        logger.exception("Sentiment cycle failed; daemon continues")
+
+
 def _require_env(name: str) -> str:
     """Return a required environment variable or raise RuntimeError."""
     value = os.environ.get(name)
@@ -83,6 +118,7 @@ def initialize_background_daemon(*, max_cycles: int | None = None,
             with get_db_connection() as conn:
                 seed_default_settings(conn)
                 run_daily_cycle(conn, api_key)
+                run_sentiment_cycle(conn)
         except Exception:
             logger.exception("Daily cycle setup failed (DB open/seed); daemon continues")
         sleep_fn(sleep_until_next_window() + WINDOW_GUARD_PAD_SECONDS)
