@@ -99,6 +99,6 @@ def generate_sentiment_inference(
                 return _default_generate_content(p, api_key=api_key, model_name=model_name)
         raw = generate_content_fn(prompt)
         return parse_sentiment_response(raw)
-    except Exception:
-        logger.exception("Sentiment inference failed; returning neutral result")
+    except Exception as exc:
+        logger.warning("Sentiment inference failed (%s); returning neutral result", exc)
         return dict(NEUTRAL_RESULT)
