@@ -32,3 +32,14 @@ CREATE TABLE IF NOT EXISTS system_settings (
     config_key   TEXT PRIMARY KEY,
     config_value TEXT NOT NULL
 );
+
+-- Manually recorded daily platform price quotes (one row per day per metal).
+-- Reference data, not capital events: correctable by overwrite/delete.
+CREATE TABLE IF NOT EXISTS daily_quotes (
+    date          TEXT NOT NULL,
+    metal         TEXT NOT NULL CHECK (metal IN ('GOLD', 'SILVER')),
+    buy_rate_myr  REAL NOT NULL,
+    sell_rate_myr REAL NOT NULL,
+    recorded_at   TIMESTAMP NOT NULL,
+    PRIMARY KEY (date, metal)
+);

@@ -133,6 +133,47 @@ def fetch_historical_matrix(conn: sqlite3.Connection,
     return df.sort_values("date").reset_index(drop=True)
 
 
+_QUOTE_COLUMNS = ["date", "metal", "buy_rate_myr", "sell_rate_myr", "recorded_at"]
+
+
+def write_daily_quote(conn: sqlite3.Connection, date: str, metal: str,
+                      buy_rate_myr: float, sell_rate_myr: float) -> None:
+    """Upsert one daily platform price quote (keyed on date+metal)."""
+    conn.execute(
+        "INSERT OR REPLACE INTO daily_quotes "
+        "(date, metal, buy_rate_myr, sell_rate_myr, recorded_at) "
+        "VALUES (?, ?, ?, ?, ?);",
+        (date, metal, buy_rate_myr, sell_rate_myr, now_utc().isoformat()),
+    )
+
+
+def fetch_daily_quotes(conn: sqlite3.Connection,
+                       metal: str | None = None) -> pd.DataFrame:
+    """Return recorded daily quotes as a DataFrame, ascending by date.
+
+    `metal` ('GOLD'/'SILVER') filters to one metal; None returns all rows.
+    """
+    query = (
+        "SELECT date, metal, buy_rate_myr, sell_rate_myr, recorded_at "
+        "FROM daily_quotes"
+    )
+    params: tuple = ()
+    if metal is not None:
+        query += " WHERE metal=?"
+        params = (metal,)
+    query += " ORDER BY date"
+    rows = conn.execute(query, params).fetchall()
+    return pd.DataFrame([dict(r) for r in rows], columns=_QUOTE_COLUMNS)
+
+
+def delete_daily_quote(conn: sqlite3.Connection, date: str, metal: str) -> None:
+    """Remove one recorded daily quote (fat-finger correction)."""
+    conn.execute(
+        "DELETE FROM daily_quotes WHERE date=? AND metal=?;",
+        (date, metal),
+    )
+
+
 DEFAULT_SETTINGS: dict[str, str] = {
     # Spread engine (absolute MYR-per-gram fallbacks; alpha/tau in days)
     "default_buy_spread": "0.0",
