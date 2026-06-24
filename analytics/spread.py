@@ -108,3 +108,29 @@ def compute_side_spread(trades: pd.DataFrame, spot_per_gram: pd.Series, side: st
         "staleness_weight": w,
         "n_trades": len(realized),
     }
+
+
+def derive_quote_spreads(quotes: pd.DataFrame, spot_per_gram: pd.Series, *,
+                         fallback_buy: float,
+                         fallback_sell: float) -> dict[str, float | int]:
+    """Median per-side spread (MYR/g) from recorded daily quotes.
+
+    For each quote row, join spot on/before its date and compute
+    buy_spread = buy_rate - spot and sell_spread = spot - sell_rate. Returns the
+    median of each side across quotes, or the configured fallback for a side
+    with no usable quote (a quote whose date has no spot on/before it is
+    skipped). Pure (Rule 2): DataFrame/Series in, values out.
+    """
+    buy_spreads: list[float] = []
+    sell_spreads: list[float] = []
+    for _, row in quotes.iterrows():
+        spot = spot_on_or_before(spot_per_gram, str(row["date"])[:10])
+        if spot is None:
+            continue
+        buy_spreads.append(realized_spread(float(row["buy_rate_myr"]), spot, "BUY"))
+        sell_spreads.append(realized_spread(float(row["sell_rate_myr"]), spot, "SELL"))
+    return {
+        "buy_spread": float(np.median(buy_spreads)) if buy_spreads else fallback_buy,
+        "sell_spread": float(np.median(sell_spreads)) if sell_spreads else fallback_sell,
+        "n_quotes": len(buy_spreads),
+    }

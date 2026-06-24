@@ -7,6 +7,7 @@ import pytest
 from analytics.spread import (
     GRAMS_PER_TROY_OZ,
     compute_side_spread,
+    derive_quote_spreads,
     effective_spread,
     per_gram,
     platform_rates,
@@ -161,3 +162,48 @@ def test_side_spread_ignores_other_side():
                               fallback=2.0, alpha_days=30.0, tau_days=30.0, now=now)
     assert res["n_trades"] == 0
     assert res["effective_spread"] == pytest.approx(2.0)
+
+
+def test_derive_quote_spreads_empty_is_fallback():
+    quotes = pd.DataFrame(columns=["date", "buy_rate_myr", "sell_rate_myr"])
+    res = derive_quote_spreads(quotes, _spot(),
+                               fallback_buy=3.0, fallback_sell=2.0)
+    assert res["n_quotes"] == 0
+    assert res["buy_spread"] == pytest.approx(3.0)
+    assert res["sell_spread"] == pytest.approx(2.0)
+
+
+def test_derive_quote_spreads_single_quote_is_realized():
+    quotes = pd.DataFrame([
+        {"date": "2026-06-22", "buy_rate_myr": 104.0, "sell_rate_myr": 97.0},
+    ])
+    res = derive_quote_spreads(quotes, _spot(),
+                               fallback_buy=3.0, fallback_sell=2.0)
+    assert res["n_quotes"] == 1
+    assert res["buy_spread"] == pytest.approx(4.0)   # 104 - 100
+    assert res["sell_spread"] == pytest.approx(3.0)  # 100 - 97
+
+
+def test_derive_quote_spreads_uses_median_over_quotes():
+    spot = pd.Series({"2026-06-20": 100.0, "2026-06-21": 100.0,
+                      "2026-06-22": 100.0})
+    quotes = pd.DataFrame([
+        {"date": "2026-06-20", "buy_rate_myr": 102.0, "sell_rate_myr": 99.0},
+        {"date": "2026-06-21", "buy_rate_myr": 104.0, "sell_rate_myr": 98.0},
+        {"date": "2026-06-22", "buy_rate_myr": 110.0, "sell_rate_myr": 90.0},  # outlier
+    ])
+    res = derive_quote_spreads(quotes, spot, fallback_buy=0.0, fallback_sell=0.0)
+    assert res["n_quotes"] == 3
+    assert res["buy_spread"] == pytest.approx(4.0)   # median(2, 4, 10)
+    assert res["sell_spread"] == pytest.approx(2.0)  # median(1, 2, 10)
+
+
+def test_derive_quote_spreads_skips_quote_with_no_prior_spot():
+    quotes = pd.DataFrame([
+        {"date": "2026-06-20", "buy_rate_myr": 104.0, "sell_rate_myr": 97.0},
+    ])  # _spot() only has 2026-06-22, so no spot on/before 2026-06-20
+    res = derive_quote_spreads(quotes, _spot(),
+                               fallback_buy=3.0, fallback_sell=2.0)
+    assert res["n_quotes"] == 0
+    assert res["buy_spread"] == pytest.approx(3.0)
+    assert res["sell_spread"] == pytest.approx(2.0)
