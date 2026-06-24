@@ -175,11 +175,9 @@ def delete_daily_quote(conn: sqlite3.Connection, date: str, metal: str) -> None:
 
 
 DEFAULT_SETTINGS: dict[str, str] = {
-    # Spread engine (absolute MYR-per-gram fallbacks; alpha/tau in days)
+    # Spread engine (absolute MYR-per-gram fallbacks)
     "default_buy_spread": "0.0",
     "default_sell_spread": "0.0",
-    "spread_recency_alpha": "30",
-    "spread_staleness_tau": "30",
     # Indicators
     "rsi_period": "14",
     "rsi_oversold": "30",

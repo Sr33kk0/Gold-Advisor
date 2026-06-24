@@ -432,8 +432,6 @@ def settings_groups(settings: dict) -> list[dict[str, object]]:
         {"title": "Spread engine", "fields": [
             _field("Default buy spread (MYR/g)", "default_buy_spread", settings),
             _field("Default sell spread (MYR/g)", "default_sell_spread", settings),
-            _field("Recency α (days)", "spread_recency_alpha", settings, "number"),
-            _field("Staleness τ (days)", "spread_staleness_tau", settings, "number"),
         ]},
         {"title": "Locale & keys", "fields": [
             _field("Base currency", "BASE_CURRENCY", settings),

@@ -262,7 +262,6 @@ def test_settings_groups_cover_keys_and_mask_api_keys():
         "vol_band_deviations": "2", "gsr_band_deviations": "2",
         "quant_vote_threshold": "2", "sentiment_max_age_days": "2",
         "default_buy_spread": "12.0", "default_sell_spread": "8.0",
-        "spread_recency_alpha": "30", "spread_staleness_tau": "30",
         "BASE_CURRENCY": "MYR", "TIMEZONE": "Asia/Kuala_Lumpur",
         "GEMINI_API_KEY": "secret", "COMMODITY_API_KEY": "secret2",
     }
@@ -271,6 +270,9 @@ def test_settings_groups_cover_keys_and_mask_api_keys():
     assert "Indicators" in titles
     all_fields = [f for g in groups for f in g["fields"]]
     by_key = {f["key"]: f for f in all_fields}
+    assert "spread_recency_alpha" not in by_key
+    assert "spread_staleness_tau" not in by_key
+    assert "default_buy_spread" in by_key
     assert by_key["rsi_period"]["value"] == "14"
     assert by_key["GEMINI_API_KEY"]["type"] == "password"
 

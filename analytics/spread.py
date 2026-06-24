@@ -1,12 +1,9 @@
-"""Pure platform-spread engine: asymmetric, recency-weighted, staleness-decaying.
+"""Pure platform-spread engine: median per-side spread from recorded quotes.
 
 All spread values are absolute MYR-per-gram amounts. No I/O, no global state
-(Rule 2). The spread reflects broker pricing behavior, so it uses the entire
-trade history (recency-decayed) and never resets on liquidation.
+(Rule 2). The displayed buy/sell rate is the day's quote when present, else
+spot +/- the median spread of all recorded quotes.
 """
-
-import math
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -30,33 +27,6 @@ def realized_spread(exec_rate: float, spot: float, side: str) -> float:
     raise ValueError(f"side must be 'BUY' or 'SELL', got {side!r}")
 
 
-def recency_weighted_mean(values, ages_days, alpha_days: float) -> float:
-    """Exponentially recency-weighted mean: weight_i = exp(-age_i / alpha)."""
-    v = np.asarray(values, dtype=float)
-    a = np.asarray(ages_days, dtype=float)
-    if v.size == 0:
-        raise ValueError("recency_weighted_mean requires at least one value")
-    if alpha_days <= 0:
-        raise ValueError("alpha_days must be positive")
-    weights = np.exp(-a / alpha_days)
-    return float(np.sum(weights * v) / np.sum(weights))
-
-
-def staleness_weight(latest_age_days: float, tau_days: float) -> float:
-    """Decay weight for how stale the latest trade is: exp(-age / tau)."""
-    if tau_days <= 0:
-        raise ValueError("tau_days must be positive")
-    return math.exp(-latest_age_days / tau_days)
-
-
-def effective_spread(derived: float | None, fallback: float,
-                     staleness_w: float) -> float:
-    """Blend derived spread toward the configured fallback as trades go stale."""
-    if derived is None:
-        return fallback
-    return staleness_w * derived + (1.0 - staleness_w) * fallback
-
-
 def platform_rates(spot_today_per_gram: float, eff_buy_spread: float,
                    eff_sell_spread: float) -> dict[str, float]:
     """Current platform buy/sell rates from spot plus asymmetric spreads."""
@@ -75,39 +45,6 @@ def spot_on_or_before(spot_per_gram: pd.Series, date: str) -> float | None:
     if prior.empty:
         return None
     return float(prior.iloc[-1])
-
-
-def compute_side_spread(trades: pd.DataFrame, spot_per_gram: pd.Series, side: str,
-                        *, fallback: float, alpha_days: float, tau_days: float,
-                        now: datetime) -> dict[str, float | int | None]:
-    """Effective per-gram spread for one side from the full (decayed) history."""
-    side_trades = trades[trades["action_type"] == side]
-
-    realized: list[float] = []
-    timestamps: list[datetime] = []
-    for _, row in side_trades.iterrows():
-        ts_str = str(row["timestamp"])
-        spot = spot_on_or_before(spot_per_gram, ts_str[:10])
-        if spot is None:  # no spot on/before trade date -> skip from derivation
-            continue
-        realized.append(realized_spread(float(row["execution_rate_myr"]), spot, side))
-        timestamps.append(datetime.fromisoformat(ts_str))
-
-    if not realized:
-        return {"effective_spread": fallback, "derived_spread": None,
-                "staleness_weight": 0.0, "n_trades": 0}
-
-    t_latest = max(timestamps)
-    ages = [(t_latest - t).total_seconds() / 86400.0 for t in timestamps]
-    derived = recency_weighted_mean(realized, ages, alpha_days)
-    latest_age = (now - t_latest).total_seconds() / 86400.0
-    w = staleness_weight(latest_age, tau_days)
-    return {
-        "effective_spread": effective_spread(derived, fallback, w),
-        "derived_spread": derived,
-        "staleness_weight": w,
-        "n_trades": len(realized),
-    }
 
 
 def derive_quote_spreads(quotes: pd.DataFrame, spot_per_gram: pd.Series, *,

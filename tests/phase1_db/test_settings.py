@@ -44,7 +44,6 @@ def test_seed_does_not_overwrite_existing(db_conn):
 def test_default_settings_has_all_expected_keys():
     expected = {
         "default_buy_spread", "default_sell_spread",
-        "spread_recency_alpha", "spread_staleness_tau",
         "rsi_period", "rsi_oversold", "rsi_overbought",
         "vol_band_deviations", "gsr_band_deviations",
         "quant_vote_threshold", "sentiment_max_age_days",
