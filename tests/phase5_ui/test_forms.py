@@ -11,8 +11,8 @@ from streamlit.testing.v1 import AppTest
 
 from database.connection import (
     delete_daily_quote, fetch_daily_quotes, fetch_transactions,
-    get_db_connection, get_setting, log_transaction, write_daily_quote,
-    write_spot_prices,
+    get_db_connection, get_setting, log_transaction, set_setting,
+    write_daily_quote, write_spot_prices,
 )
 from utils.timeutil import now_utc
 
@@ -206,14 +206,22 @@ def test_deleting_a_quote_removes_it(tmp_path, monkeypatch):
         assert len(fetch_daily_quotes(conn)) == 0
 
 
-def test_backdated_trade_writes_trade_and_quote(tmp_path, monkeypatch):
-    at = _run(tmp_path, monkeypatch)
+def test_backdated_trade_logs_one_side_and_estimates_the_other(tmp_path, monkeypatch):
+    # Only the BUY side is entered; the un-quoted SELL side is recorded as the
+    # entered rate minus the median bid-ask width (default spreads 12 + 8 = 20).
+    _seed(tmp_path / "audash.db")
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        set_setting(conn, "default_buy_spread", "12.0")
+        set_setting(conn, "default_sell_spread", "8.0")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+
     at.radio[0].set_value("New Trade").run()
     past = now_utc().date() - timedelta(days=5)
     _widget(at.date_input, "trade_date").set_value(past).run()
-    k = f"{past.isoformat()}_GOLD"
-    _widget(at.number_input, f"trade_rate_buy_{k}").set_value(425.0).run()
-    _widget(at.number_input, f"trade_rate_sell_{k}").set_value(421.0).run()
+    k = f"{past.isoformat()}_GOLD_BUY"           # single input, keyed by action
+    _widget(at.number_input, f"trade_rate_{k}").set_value(425.0).run()
     _widget(at.number_input, "trade_primary").set_value(5000.0).run()  # cash mode
     _widget(at.button, "trade_review").click().run()
     _widget(at.button, "trade_submit").click().run()
@@ -227,11 +235,13 @@ def test_backdated_trade_writes_trade_and_quote(tmp_path, monkeypatch):
     assert tx.iloc[0]["timestamp"].startswith(past.isoformat())
     assert len(q) == 1
     assert q.iloc[0]["date"] == past.isoformat()
-    assert q.iloc[0]["buy_rate_myr"] == 425.0
-    assert q.iloc[0]["sell_rate_myr"] == 421.0
+    assert q.iloc[0]["buy_rate_myr"] == 425.0                 # entered, exact
+    assert q.iloc[0]["sell_rate_myr"] == 405.0               # estimated: 425 - 20
 
 
-def test_backdated_rates_prefill_from_recorded_quote(tmp_path, monkeypatch):
+def test_backdated_trade_preserves_recorded_other_side(tmp_path, monkeypatch):
+    # A real quote already exists for the date. Logging a SELL overwrites only
+    # the sell side; the recorded buy side is preserved (not re-estimated).
     _seed(tmp_path / "audash.db")
     past = now_utc().date() - timedelta(days=5)
     with get_db_connection(str(tmp_path / "audash.db")) as conn:
@@ -242,9 +252,41 @@ def test_backdated_rates_prefill_from_recorded_quote(tmp_path, monkeypatch):
 
     at.radio[0].set_value("New Trade").run()
     _widget(at.date_input, "trade_date").set_value(past).run()
-    k = f"{past.isoformat()}_GOLD"
-    assert _widget(at.number_input, f"trade_rate_buy_{k}").value == 433.0
-    assert _widget(at.number_input, f"trade_rate_sell_{k}").value == 428.0
+    _widget(at.radio, "trade_action").set_value("SELL").run()
+    k = f"{past.isoformat()}_GOLD_SELL"
+    _widget(at.number_input, f"trade_rate_{k}").set_value(430.0).run()  # new sell
+    _widget(at.number_input, "trade_primary").set_value(5000.0).run()
+    _widget(at.button, "trade_review").click().run()
+    _widget(at.button, "trade_submit").click().run()
+
+    assert not at.exception
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        tx = fetch_transactions(conn)
+        q = fetch_daily_quotes(conn)
+    assert tx.iloc[0]["execution_rate_myr"] == 430.0          # SELL -> entered
+    assert len(q) == 1                                        # upsert, one row
+    assert q.iloc[0]["sell_rate_myr"] == 430.0               # entered overwrites
+    assert q.iloc[0]["buy_rate_myr"] == 433.0                # real side preserved
+
+
+def test_backdated_rate_prefills_the_action_side_from_recorded_quote(tmp_path, monkeypatch):
+    _seed(tmp_path / "audash.db")
+    past = now_utc().date() - timedelta(days=5)
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        write_daily_quote(conn, past.isoformat(), "GOLD", 433.0, 428.0)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+
+    at.radio[0].set_value("New Trade").run()
+    _widget(at.date_input, "trade_date").set_value(past).run()
+    # BUY (default): the single input prefills from the quote's buy side.
+    k_buy = f"{past.isoformat()}_GOLD_BUY"
+    assert _widget(at.number_input, f"trade_rate_{k_buy}").value == 433.0
+    # SELL: the single input prefills from the quote's sell side.
+    _widget(at.radio, "trade_action").set_value("SELL").run()
+    k_sell = f"{past.isoformat()}_GOLD_SELL"
+    assert _widget(at.number_input, f"trade_rate_{k_sell}").value == 428.0
     assert not at.exception
 
 
@@ -262,14 +304,22 @@ def test_today_trade_writes_no_quote(tmp_path, monkeypatch):
         assert len(fetch_daily_quotes(conn)) == 0
 
 
-def test_backdated_inverted_rates_warn(tmp_path, monkeypatch):
-    at = _run(tmp_path, monkeypatch)
-    at.radio[0].set_value("New Trade").run()
+def test_backdated_entered_side_crossing_preserved_other_warns(tmp_path, monkeypatch):
+    # Entered SELL (440) lands above the preserved BUY side (433), inverting the
+    # recorded pair — the swap warning still fires on the derived quote.
+    _seed(tmp_path / "audash.db")
     past = now_utc().date() - timedelta(days=5)
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        write_daily_quote(conn, past.isoformat(), "GOLD", 433.0, 428.0)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+
+    at.radio[0].set_value("New Trade").run()
     _widget(at.date_input, "trade_date").set_value(past).run()
-    k = f"{past.isoformat()}_GOLD"
-    _widget(at.number_input, f"trade_rate_buy_{k}").set_value(500.0).run()
-    _widget(at.number_input, f"trade_rate_sell_{k}").set_value(510.0).run()  # buy < sell
+    _widget(at.radio, "trade_action").set_value("SELL").run()
+    k = f"{past.isoformat()}_GOLD_SELL"
+    _widget(at.number_input, f"trade_rate_{k}").set_value(440.0).run()  # > buy 433
 
     assert any("swap" in w.value.lower() for w in at.warning)
     assert not at.exception

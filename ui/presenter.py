@@ -15,12 +15,12 @@ from datetime import datetime
 
 # --- number formatting -------------------------------------------------------
 
-def fmt(n: float, d: int = 2) -> str:
+def fmt(n: float, d: int = 6) -> str:
     """Thousands-grouped fixed-decimal number (matches the design's en-US style)."""
     return f"{n:,.{d}f}"
 
 
-def signed(n: float, d: int = 2) -> str:
+def signed(n: float, d: int = 6) -> str:
     """Like fmt, but force a leading '+' on non-negative values."""
     return ("+" if n >= 0 else "") + fmt(n, d)
 
@@ -206,9 +206,27 @@ def backdated_rate_prefills(quote_row: dict | None, live_buy: float,
     return {"buy": float(live_buy), "sell": float(live_sell)}
 
 
-def active_side_rate(action: str, buy: float, sell: float) -> float:
-    """The platform rate a trade executes at: buy for BUY, sell for SELL."""
-    return float(buy) if action == "BUY" else float(sell)
+def backdated_quote(action: str, entered_rate: float, *, buy_spread: float,
+                    sell_spread: float,
+                    existing: dict | None = None) -> dict[str, float]:
+    """The {buy, sell} daily quote a back-dated trade records from one side.
+
+    The side matching `action` (buy for BUY, sell for SELL) is recorded exactly
+    as `entered_rate`. The opposite side is taken from `existing` — a recorded
+    {"buy","sell"} quote already on file for that date — when present, so a real
+    rate is never overwritten by a guess; otherwise it's estimated the median
+    bid-ask width (buy_spread + sell_spread) away from the entered side, floored
+    at 0 so it can never go negative.
+    """
+    entered = float(entered_rate)
+    width = float(buy_spread) + float(sell_spread)
+    if action == "BUY":
+        sell = (float(existing["sell"]) if existing is not None
+                else max(0.0, entered - width))
+        return {"buy": entered, "sell": sell}
+    buy = (float(existing["buy"]) if existing is not None
+           else entered + width)
+    return {"buy": buy, "sell": entered}
 
 
 # --- trade ledger: confirm line, recent rows, reversal -----------------------
@@ -216,7 +234,7 @@ def active_side_rate(action: str, buy: float, sell: float) -> float:
 def trade_confirm_line(action: str, metal: str, mass_grams: float,
                        fiat_total_myr: float, rate: float) -> str:
     """One-line, exact restatement of what a confirm will write to the ledger."""
-    return (f"{action} · {metal} · {fmt(mass_grams, 4)} g "
+    return (f"{action} · {metal} · {fmt(mass_grams, 6)} g "
             f"@ {fmt(rate)} MYR/g · RM {fmt(fiat_total_myr)}")
 
 
@@ -268,7 +286,7 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
             "metal": str(r["metal"]),
             "color": theme["buy"] if action == "BUY" else theme["sell"],
             "opposite": "SELL" if action == "BUY" else "BUY",
-            "mass": fmt(float(r["mass_grams"]), 4),
+            "mass": fmt(float(r["mass_grams"]), 6),
             "rate": fmt(float(r["execution_rate_myr"])),
             "fiat": fmt(float(r["fiat_total_myr"])),
             "execution_rate_myr": float(r["execution_rate_myr"]),
@@ -388,7 +406,7 @@ def build_portfolio_readouts(market: dict, theme: dict) -> dict[str, object]:
     """Zone B — secondary holdings/cost basis plus the emphasized PnL."""
     return {
         "secondary": [
-            _readout("Holdings", fmt(market["holdings"], 1), "g", theme["text"]),
+            _readout("Holdings", fmt(market["holdings"], 6), "g", theme["text"]),
             _readout("Cost basis", fmt(market["cost_basis"]), "MYR/g", theme["text"]),
         ],
         "pnl": pnl_readout(market["pnl"], theme),

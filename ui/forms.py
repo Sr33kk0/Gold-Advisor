@@ -196,14 +196,20 @@ def render_ledger_input_form(model: dict) -> None:
 
 
 def _render_backdated_rates(metal: str, action: str, trade_date,
-                            live_buy: float, live_sell: float) -> tuple[float, dict]:
-    """Two editable platform-rate inputs for a back-dated trade.
+                            live_buy: float, live_sell: float,
+                            buy_spread: float,
+                            sell_spread: float) -> tuple[float, dict]:
+    """One editable platform-rate input for a back-dated trade — the side that
+    matches the action (BUY -> buy rate, SELL -> sell rate).
 
-    Prefills each side from the recorded daily_quote for (trade_date, metal), or
-    today's live buy/sell when none. Returns (active_rate, quote) where
-    active_rate is the side the trade executes at and quote = {"buy","sell"} is
-    upserted as that date's quote on commit. Widget keys carry date+metal so a
-    changed pick reseeds the prefill (Streamlit keeps a keyed widget's value).
+    Prefills from the recorded daily_quote's matching side for (trade_date,
+    metal), or today's live rate for that side when none. Returns (rate, quote)
+    where rate is the entered side the trade executes at and quote = {"buy",
+    "sell"} is upserted as that date's quote on commit: the entered side exact,
+    the other side kept from an existing recorded quote or, when none, estimated
+    the median bid-ask width away (see presenter.backdated_quote). Widget key
+    carries date+metal+action so a changed pick reseeds the prefill (Streamlit
+    keeps a keyed widget's value).
     """
     quote_row = None
     # Degrade to the live-rate prefill if the read fails (e.g. worker
@@ -221,39 +227,48 @@ def _render_backdated_rates(metal: str, action: str, trade_date,
             quote_row = match.iloc[-1].to_dict()
 
     prefills = presenter.backdated_rate_prefills(quote_row, live_buy, live_sell)
+    existing = ({"buy": float(quote_row["buy_rate_myr"]),
+                 "sell": float(quote_row["sell_rate_myr"])}
+                if quote_row is not None else None)
+    side = "buy" if action == "BUY" else "sell"
+
     st.markdown(
         f'<div class="audash-eyebrow" style="margin-top:6px;">Editing historical '
-        f'platform rates · {trade_date.isoformat()}</div>',
+        f'platform {action.lower()} rate · {trade_date.isoformat()}</div>',
         unsafe_allow_html=True)
 
-    k = f"{trade_date.isoformat()}_{metal}"
-    buy = st.number_input(
-        "Platform buy rate · MYR/g", min_value=0.0, value=float(prefills["buy"]),
-        step=1.0, format="%.2f", key=f"trade_rate_buy_{k}",
-        help="The platform's BUY price on this date (used when logging a BUY).")
-    sell = st.number_input(
-        "Platform sell rate · MYR/g", min_value=0.0, value=float(prefills["sell"]),
-        step=1.0, format="%.2f", key=f"trade_rate_sell_{k}",
-        help="The platform's SELL price on this date (used when logging a SELL).")
+    k = f"{trade_date.isoformat()}_{metal}_{action}"
+    rate = st.number_input(
+        f"Platform {action.lower()} rate · MYR/g", min_value=0.0,
+        value=float(prefills[side]), step=1.0, format="%.6f",
+        key=f"trade_rate_{k}",
+        help=f"The platform's {action} price on this date — what this {action} "
+             f"executes at and is recorded as the {trade_date.isoformat()} quote.")
 
-    rate = presenter.active_side_rate(action, buy, sell)
+    quote = presenter.backdated_quote(action, rate, buy_spread=buy_spread,
+                                      sell_spread=sell_spread, existing=existing)
+    other = "sell" if action == "BUY" else "buy"
+    other_src = "recorded quote" if existing is not None else "median spread"
     st.markdown(
         f'<div class="audash-eyebrow">Used for this {action} · '
         f'<span style="color:{THEME["accent"]};">{presenter.fmt(rate)} MYR/g</span>'
-        f' · both rates recorded as the {trade_date.isoformat()} {metal} quote'
+        f' · {other} side {presenter.fmt(quote[other])} from {other_src}'
+        f' · both recorded as the {trade_date.isoformat()} {metal} quote'
         f'</div>', unsafe_allow_html=True)
-    if buy > 0 and sell > 0 and buy < sell:
-        st.warning("Buy rate is below sell rate — did you swap them? It will be "
-                   "recorded exactly as entered.")
-    return rate, {"buy": buy, "sell": sell}
+    if quote["buy"] > 0 and quote["sell"] > 0 and quote["buy"] < quote["sell"]:
+        st.warning("Buy rate is below sell rate — did you swap them? The quote "
+                   "will be recorded exactly as derived.")
+    return rate, quote
 
 
 def _render_trade_entry(model: dict) -> None:
     """Pick metal/action/date + a cash<->mass amount; stage a trade to review.
 
     Today's trade uses the read-only live platform rate; a back-dated trade
-    (date before today) gets editable buy/sell rate inputs (prefilled from the
-    recorded quote, else live) that are also recorded as that date's quote.
+    (date before today) gets one editable rate input for the side matching the
+    action (buy for BUY, sell for SELL); the other side is preserved from an
+    existing recorded quote or estimated from the median spread, and both are
+    recorded as that date's quote.
     """
     market = model["market"]
     today = date.fromisoformat(model["today"])
@@ -266,8 +281,10 @@ def _render_trade_entry(model: dict) -> None:
     live_sell = float(market[f"{metal.lower()}_sell"])
 
     if trade_date < today:
-        rate, quote = _render_backdated_rates(metal, action, trade_date,
-                                              live_buy, live_sell)
+        spreads = model["quotes"][metal]
+        rate, quote = _render_backdated_rates(
+            metal, action, trade_date, live_buy, live_sell,
+            spreads["buy_spread"], spreads["sell_spread"])
     else:
         rate = live_buy if action == "BUY" else live_sell
         quote = None
@@ -282,7 +299,7 @@ def _render_trade_entry(model: dict) -> None:
 
     mode = st.radio("Enter by", ["cash", "mass"], horizontal=True, key="trade_mode",
                     format_func=lambda m: "Cash · MYR" if m == "cash" else "Mass · grams")
-    step, fmt_spec = (100.0, "%.2f") if mode == "cash" else (0.1, "%.4f")
+    step, fmt_spec = (100.0, "%.6f") if mode == "cash" else (0.1, "%.6f")
     primary = st.number_input(
         "Cash · MYR" if mode == "cash" else "Mass · grams",
         min_value=0.0, value=0.0, step=step, format=fmt_spec, key="trade_primary",
@@ -290,7 +307,7 @@ def _render_trade_entry(model: dict) -> None:
 
     amounts = presenter.resolve_trade_amounts(mode, primary, rate)
     if mode == "cash":
-        derived = f"{presenter.fmt(amounts['mass_grams'], 4)} g"
+        derived = f"{presenter.fmt(amounts['mass_grams'], 6)} g"
     else:
         derived = f"RM {presenter.fmt(amounts['fiat_total_myr'])}"
     st.markdown(
@@ -467,10 +484,10 @@ def render_daily_quotes_form(model: dict) -> None:
     quote_date = st.date_input("Date", value=date.fromisoformat(model["today"]),
                               key="quote_date")
     buy_rate = st.number_input(
-        "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
+        "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.6f",
         key="quote_buy", help="Price you pay to buy (≈ spot + spread).")
     sell_rate = st.number_input(
-        "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
+        "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.6f",
         key="quote_sell", help="Price you receive to sell (≈ spot − spread).")
 
     _render_quote_preview(model, metal, buy_rate, sell_rate)
