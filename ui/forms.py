@@ -111,13 +111,16 @@ def _cancel_void() -> None:
     st.session_state.pop("void_arm", None)
 
 
-def _commit_void(entry: dict, original_ts: str, flash: str) -> None:
+def _commit_void(entry: dict, original_ts: str, original_id: str,
+                 flash: str) -> None:
     try:
         with get_db_connection() as conn:
             log_transaction(
                 conn, entry["action_type"], entry["metal"],
                 entry["execution_rate_myr"], entry["mass_grams"],
-                entry["fiat_total_myr"], timestamp=_reversal_timestamp(original_ts))
+                entry["fiat_total_myr"],
+                timestamp=_reversal_timestamp(original_ts),
+                reverses_id=original_id)
     except Exception:
         st.session_state["_void_error"] = (
             "Couldn't write the reversal — the ledger is unchanged. Retry in a "
@@ -291,31 +294,40 @@ def _render_recent_trades() -> None:
         st.error(error)
 
 
-def _trade_row_dl(row: dict) -> str:
+def _trade_row_dl(row: dict, voided: bool = False) -> str:
     """One ledger row as a horizontal description list.
 
     Each datum is a <dt>/<dd> pair (the <dt> labels are screen-reader-only), so
     assistive tech hears "Trade BUY · GOLD, Mass 2.0000 g, Value RM 800.00 …"
     instead of an unlabeled value stream. Flex ratios mirror the old 3 : 1.6 : 2
-    columns so the figures still line up down the ledger."""
+    columns so the figures still line up down the ledger. A `voided` row is dimmed
+    and struck through, with a non-color "VOIDED" tag (colorblind-safe)."""
     t = THEME
+    label_color = t["muted"] if voided else row["color"]
+    text_color = t["muted"] if voided else t["text"]
+    strike = "text-decoration:line-through;" if voided else ""
+    tag = (
+        f'<span style="font-family:{t["f_ui"]};font-size:10px;font-weight:600;'
+        f'letter-spacing:0.08em;color:{t["muted"]};border:1px solid {t["line"]};'
+        f'border-radius:3px;padding:1px 5px;margin-left:8px;">VOIDED</span>'
+        if voided else "")
     return (
         '<dl class="audash-trade" style="display:flex;align-items:center;gap:14px;">'
         '<div style="flex:3 1 0;min-width:0;">'
         '<dt class="audash-sr-only">Trade</dt>'
         f'<dd><span style="font-family:{t["f_ui"]};font-size:14px;font-weight:600;'
-        f'color:{row["color"]};">{row["action"]} · {row["metal"]}</span>'
+        f'color:{label_color};{strike}">{row["action"]} · {row["metal"]}</span>{tag}'
         f'<span style="display:block;font-family:{t["f_data"]};font-size:11px;'
         f'color:{t["muted"]};">{row["date"]}</span></dd></div>'
         '<div style="flex:1.6 1 0;min-width:0;">'
         '<dt class="audash-sr-only">Mass (grams)</dt>'
         f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
-        f'color:{t["text"]};">{row["mass"]} '
+        f'color:{text_color};{strike}">{row["mass"]} '
         f'<span style="color:{t["muted"]};font-size:11px;">g</span></dd></div>'
         '<div style="flex:2 1 0;min-width:0;">'
         '<dt class="audash-sr-only">Value</dt>'
         f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
-        f'color:{t["text"]};">RM {row["fiat"]}'
+        f'color:{text_color};{strike}">RM {row["fiat"]}'
         f'<span style="display:block;font-size:11px;color:{t["muted"]};">'
         f'@ {row["rate"]}</span></dd></div>'
         '</dl>'
@@ -323,6 +335,10 @@ def _trade_row_dl(row: dict) -> str:
 
 
 def _render_trade_row(row: dict, armed: bool) -> None:
+    if row.get("voided"):
+        st.markdown(_trade_row_dl(row, voided=True), unsafe_allow_html=True)
+        return
+
     data, action = st.columns([6.6, 1.4])
     with data:
         st.markdown(_trade_row_dl(row), unsafe_allow_html=True)
@@ -350,12 +366,13 @@ def _render_void_confirm(row: dict) -> None:
     entry = presenter.reversal_entry(
         row["action"], row["metal"], row["execution_rate_myr"],
         row["mass_grams"], row["fiat_total_myr"])
-    flash = (f"Voided {row['action']} · {row['metal']} — offsetting "
-             f"{entry['action_type']} written")
+    flash = (f"Voided {row['date']} {row['action']} · {row['metal']} — net "
+             f"position unchanged, ledger preserved")
 
     confirm, cancel = st.columns([1, 1])
     confirm.button(f"Void {row['action']} {row['metal']}", key=f"voidok_{row['id']}",
-                   type="primary", on_click=_commit_void, args=(entry, row["ts"], flash))
+                   type="primary", on_click=_commit_void,
+                   args=(entry, row["ts"], row["id"], flash))
     cancel.button(f"Keep {row['action']} {row['metal']}", key=f"voidcancel_{row['id']}",
                   on_click=_cancel_void)
 

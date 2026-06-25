@@ -204,3 +204,26 @@ def test_deleting_a_quote_removes_it(tmp_path, monkeypatch):
     assert not at.exception
     with get_db_connection(str(tmp_path / "audash.db")) as conn:
         assert len(fetch_daily_quotes(conn)) == 0
+
+
+def test_voiding_collapses_to_a_single_voided_line(tmp_path, monkeypatch):
+    _seed(tmp_path / "audash.db")
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+
+    at.radio[0].set_value("New Trade").run()
+    _widget(at.button, f"void_{tx_id}").click().run()      # arm
+    _widget(at.button, f"voidok_{tx_id}").click().run()    # confirm
+
+    assert not at.exception
+    # the offsetting reversal is persisted AND linked back to the original
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        df = fetch_transactions(conn)
+    assert (df["reverses_id"] == tx_id).sum() == 1
+    # the original now renders as VOIDED with no void button; reversal not listed
+    blob = " ".join(m.value for m in at.markdown)
+    assert "VOIDED" in blob
+    assert not any(w.key and w.key.startswith("void_") for w in at.button)
