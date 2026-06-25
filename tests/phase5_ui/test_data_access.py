@@ -67,6 +67,21 @@ def test_load_dashboard_model_populates_market_and_signal(db_conn):
     assert model["signal_result"]["sentiment_stale"] is False
 
 
+def test_chart_markers_exclude_voided_trades(db_conn):
+    _seed_spot(db_conn)
+    tx = log_transaction(db_conn, "BUY", "GOLD", 500.0, 10.0, 5000.0)
+    # void it: an offsetting SELL linked back to the original
+    log_transaction(db_conn, "SELL", "GOLD", 500.0, 10.0, 5000.0, reverses_id=tx)
+    # a separate, live BUY stays visible on the chart
+    log_transaction(db_conn, "BUY", "GOLD", 520.0, 4.0, 2080.0)
+
+    model = data_access.load_dashboard_model(db_conn, now=now_utc())
+    markers = model["chart"]["markers"]
+
+    assert [m["side"] for m in markers] == ["BUY"]   # voided pair hidden
+    assert markers[0]["price"] == 520.0
+
+
 def test_load_dashboard_model_forces_hold_when_sentiment_stale(db_conn):
     _seed_spot(db_conn)
     write_sentiment_snapshot(db_conn, now_utc().date().isoformat(),

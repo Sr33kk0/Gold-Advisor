@@ -24,7 +24,7 @@ from database.connection import (
     DEFAULT_SETTINGS, fetch_daily_quotes, fetch_historical_matrix,
     fetch_latest_sentiment, fetch_transactions,
 )
-from ui.presenter import sentiment_age_days
+from ui.presenter import build_trade_markers, sentiment_age_days
 from utils.timeutil import now_utc, to_local
 
 # Re-export so the UI imports its read API from one module.
@@ -175,11 +175,9 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
         "sentiment": sentiment_score if sentiment_score is not None else 0.0,
     }
 
-    markers = [
-        {"date": str(r["timestamp"])[:10], "side": r["action_type"],
-         "price": float(r["execution_rate_myr"])}
-        for _, r in gold_trades.iterrows()
-    ]
+    # Voided trades and their reversals net to zero, so they're hidden from the
+    # chart marks (matching the collapsed recent-trades ledger).
+    markers = build_trade_markers(gold_trades)
 
     chart = {
         "dates": dates,

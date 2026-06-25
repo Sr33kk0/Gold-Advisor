@@ -401,6 +401,26 @@ def test_reversal_entry_flips_action_and_preserves_amounts():
     assert back["action_type"] == "BUY"
 
 
+def test_build_trade_markers_excludes_voided_and_reversal():
+    markers = presenter.build_trade_markers(_trades_with_void_df())
+    # only the live trade 'b' survives; voided 'a' and its reversal 'rev-a' hidden
+    assert len(markers) == 1
+    assert markers[0] == {"date": "2026-06-22", "side": "BUY", "price": 5.0}
+
+
+def test_build_trade_markers_legacy_frame_shows_all():
+    markers = presenter.build_trade_markers(_trades_df())
+    assert len(markers) == 2
+    assert {m["side"] for m in markers} == {"BUY", "SELL"}
+
+
+def test_build_trade_markers_empty_is_empty_list():
+    empty = pd.DataFrame(columns=["id", "timestamp", "action_type", "metal",
+                                  "execution_rate_myr", "mass_grams",
+                                  "fiat_total_myr", "reverses_id"])
+    assert presenter.build_trade_markers(empty) == []
+
+
 def test_build_recent_trades_marks_voided_and_drops_reversal():
     rows = presenter.build_recent_trades(_trades_with_void_df(), THEME)
     ids = [r["id"] for r in rows]

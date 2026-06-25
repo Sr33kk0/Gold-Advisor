@@ -200,6 +200,25 @@ def trade_confirm_line(action: str, metal: str, mass_grams: float,
             f"@ {fmt(rate)} MYR/g · RM {fmt(fiat_total_myr)}")
 
 
+def _void_id_sets(trades) -> tuple[set[str], set[str]]:
+    """Identify the two id sets a void produces in a transactions frame.
+
+    Returns ``(reversed_ids, reversal_row_ids)``:
+    - ``reversed_ids``: ids of original trades that have been voided (some row
+      points back at them via ``reverses_id``).
+    - ``reversal_row_ids``: ids of the reversal rows themselves.
+
+    Empty sets when the frame lacks the ``reverses_id`` column (legacy /
+    pre-migration data).
+    """
+    if "reverses_id" not in trades.columns:
+        return set(), set()
+    links = trades["reverses_id"]
+    reversed_ids = set(links.dropna().astype(str))
+    reversal_row_ids = set(trades.loc[links.notna(), "id"].astype(str))
+    return reversed_ids, reversal_row_ids
+
+
 def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
     """View-model for the recent-trades ledger panel, newest first.
 
@@ -214,13 +233,7 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
     """
     if trades is None or len(trades) == 0:
         return []
-    if "reverses_id" in trades.columns:
-        links = trades["reverses_id"]
-        reversed_ids = set(links.dropna().astype(str))
-        reversal_row_ids = set(trades.loc[links.notna(), "id"].astype(str))
-    else:
-        reversed_ids = set()
-        reversal_row_ids = set()
+    reversed_ids, reversal_row_ids = _void_id_sets(trades)
 
     visible = trades[~trades["id"].astype(str).isin(reversal_row_ids)]
     recent = visible.sort_values("timestamp", ascending=False).head(limit)
@@ -244,6 +257,26 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
             "voided": str(r["id"]) in reversed_ids,
         })
     return rows
+
+
+def build_trade_markers(trades) -> list[dict]:
+    """Chart trade marks ({date, side, price}), excluding voided pairs.
+
+    A voided trade and its offsetting reversal net to zero, so both are hidden
+    from the price chart — matching the collapsed recent-trades ledger. `trades`
+    is a fetch_transactions DataFrame; an empty/None frame yields an empty list.
+    A frame without the `reverses_id` column (legacy data) shows every trade.
+    """
+    if trades is None or len(trades) == 0:
+        return []
+    reversed_ids, reversal_row_ids = _void_id_sets(trades)
+    hidden = reversed_ids | reversal_row_ids
+    return [
+        {"date": str(r["timestamp"])[:10], "side": str(r["action_type"]),
+         "price": float(r["execution_rate_myr"])}
+        for _, r in trades.iterrows()
+        if str(r["id"]) not in hidden
+    ]
 
 
 def reversal_entry(action_type: str, metal: str, execution_rate_myr: float,
