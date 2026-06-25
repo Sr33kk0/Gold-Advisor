@@ -157,26 +157,52 @@ def _market():
     }
 
 
-def test_build_metric_cells_has_twelve_cells_in_order():
-    cells = presenter.build_metric_cells(_market(), THEME)
-    assert len(cells) == 12
-    assert cells[0]["label"] == "Gold buy"
-    assert cells[0]["color"] == THEME["gold"]
+# Zone A — the Market: four live rates, colored by metal (not boxed).
+def test_build_market_readouts_four_rates_colored_by_metal():
+    r = presenter.build_market_readouts(_market(), THEME)
+    assert [x["label"] for x in r] == ["Gold buy", "Gold sell", "Silver buy", "Silver sell"]
+    assert r[0]["value"] == "520.00" and r[0]["color"] == THEME["gold"]
+    assert r[2]["color"] == THEME["silver"]
+    assert all(x["unit"] == "MYR/g" for x in r)
 
 
-def test_build_metric_cells_colors_pnl_and_sentiment_by_sign():
-    pos = presenter.build_metric_cells(_market(), THEME)
-    pnl = next(c for c in pos if c["label"] == "Unrealized PnL")
-    sent = next(c for c in pos if c["label"] == "Sentiment")
-    assert pnl["color"] == THEME["buy"]
-    assert sent["color"] == THEME["buy"]
+# Zone B — the Portfolio: PnL is the emphasized readout (sign + shape + color).
+def test_pnl_readout_signs_shape_and_color():
+    pos = presenter.pnl_readout(2687.5, THEME)
+    assert pos["value"] == "+2,687.50"
+    assert pos["shape"] == "▲" and pos["color"] == THEME["buy"]
+    neg = presenter.pnl_readout(-100.0, THEME)
+    assert neg["shape"] == "▼" and neg["color"] == THEME["sell"]
+    flat = presenter.pnl_readout(0.0, THEME)
+    assert flat["shape"] == "○" and flat["color"] == THEME["muted"]
+
+
+def test_build_portfolio_readouts_secondary_and_emphasized_pnl():
+    port = presenter.build_portfolio_readouts(_market(), THEME)
+    assert [x["label"] for x in port["secondary"]] == ["Holdings", "Cost basis"]
+    assert port["secondary"][0]["value"] == "125.0" and port["secondary"][0]["unit"] == "g"
+    assert port["pnl"]["label"] == "Unrealized PnL"
+    assert port["pnl"]["value"] == "+2,687.50"
+
+
+# Zone C — the Engine: secondary raw readings, sentiment colored by sign.
+def test_build_engine_readouts_order_and_sentiment_sign_color():
+    eng = presenter.build_engine_readouts(_market(), THEME)
+    assert [x["label"] for x in eng] == [
+        "RSI", "%B", "Sentiment", "Eff. buy spread", "Eff. sell spread"]
+    sent = next(x for x in eng if x["label"] == "Sentiment")
+    assert sent["value"] == "+1.2" and sent["color"] == THEME["buy"]
 
     m = _market()
-    m["pnl"] = -100.0
     m["sentiment"] = -2.0
-    neg = presenter.build_metric_cells(m, THEME)
-    assert next(c for c in neg if c["label"] == "Unrealized PnL")["color"] == THEME["sell"]
-    assert next(c for c in neg if c["label"] == "Sentiment")["color"] == THEME["sell"]
+    neg = presenter.build_engine_readouts(m, THEME)
+    assert next(x for x in neg if x["label"] == "Sentiment")["color"] == THEME["sell"]
+
+
+def test_verdict_shape_encodes_by_geometry_not_hue():
+    assert presenter.verdict_shape("BUY") == "▲"
+    assert presenter.verdict_shape("SELL") == "▼"
+    assert presenter.verdict_shape("HOLD") == "○"
 
 
 def _signal_result():
@@ -202,6 +228,7 @@ def test_verdict_view_blanks_metal_word_on_hold_and_signs_net():
     assert view["net_signed"] == "-3"
     assert view["threshold"] == 2
     assert view["stale"] is False
+    assert view["shape"] == "○"   # HOLD encodes by shape too, not just hue
 
 
 def test_verdict_view_sets_metal_word_when_trading():

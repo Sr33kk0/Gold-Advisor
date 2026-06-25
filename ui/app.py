@@ -39,57 +39,104 @@ def _eyebrow(model: dict) -> str:
 
 
 def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) -> str:
+    """Condensed header: the verdict (shape + serif word) and the consensus +
+    sentiment gate side by side, kept tight so the live rates sit high on the
+    page. The two engines stay visibly distinct (Principle 1, never collapsed)."""
     t = THEME
     stale = '<span class="audash-stale">STALE</span>' if view["stale"] else ""
     metal = (f'<span class="audash-verdict-metal">{view["metal_word"]}</span>'
              if view["metal_word"] else "")
     return f"""
     <div class="audash-duo">
-      <div class="audash-panel">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <div class="audash-panel audash-panel-verdict">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
           <span class="audash-eyebrow">{eyebrow}</span>{stale}
         </div>
-        <div style="display:flex;align-items:flex-end;gap:18px;">
+        <div style="display:flex;align-items:baseline;gap:16px;">
+          <span aria-hidden="true" class="audash-verdict-shape" style="color:{view['color']};">{view['shape']}</span>
           <div class="audash-verdict-word" role="heading" aria-level="1" style="color:{view['color']};">{view['word']}</div>{metal}
         </div>
-        <p class="audash-verdict-reason" style="margin:18px 0 0;">{reason}</p>
+        <p class="audash-verdict-reason" style="margin:10px 0 0;">{reason}</p>
       </div>
-      <div class="audash-panel" style="display:flex;flex-direction:column;">
-        <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:18px;">Consensus</div>
+      <div class="audash-panel audash-panel-verdict" style="display:flex;flex-direction:column;">
+        <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:8px;">Consensus</div>
         <div style="display:flex;align-items:baseline;gap:8px;">
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:46px;color:{t['text']};">{view['net_signed']}</span>
-          <span style="font-family:{t['f_data']};font-size:14px;color:{t['muted']};">net votes</span>
+          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:38px;line-height:1;color:{t['text']};">{view['net_signed']}</span>
+          <span style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};">net votes</span>
         </div>
-        <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:2px;">threshold ±{view['threshold']} → quant <span style="color:{view['quant_color']};">{view['quant_bias']}</span></div>
-        <div style="height:1px;background:{t['line']};margin:18px 0;"></div>
-        <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:8px;">Sentiment gate</div>
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;">
+        <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:3px;">threshold ±{view['threshold']} → quant <span style="color:{view['quant_color']};">{view['quant_bias']}</span></div>
+        <div style="height:1px;background:{t['line']};margin:13px 0;"></div>
+        <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:7px;">Sentiment gate</div>
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
           <span aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:{view['gate_color']};"></span>
           <span style="font-family:{t['f_ui']};font-size:14px;font-weight:500;color:{t['text']};">{view['gate_label']}</span>
         </div>
-        <p style="margin:0;font-family:{t['f_data']};font-size:12.5px;line-height:1.5;color:{t['sub']};">{detail}</p>
+        <p style="margin:0;font-family:{t['f_data']};font-size:13px;line-height:1.5;color:{t['sub']};">{detail}</p>
       </div>
     </div>"""
 
 
-def _metric_grid_html(cells: list[dict]) -> str:
-    items = ""
-    for i, c in enumerate(cells):
-        items += (
-            f'<div class="audash-cell" style="--i:{i};background:{c["tint"]};'
-            f'border-top:2px solid {c["edge"]};">'
-            f'<dt class="audash-cell-label">{c["label"]}</dt>'
-            f'<dd class="audash-cell-dd">'
-            f'<span class="audash-num audash-cell-value" style="color:{c["color"]};">{c["value"]}</span>'
-            f'<span class="audash-cell-unit">{c["unit"]}</span></dd></div>'
+def _readouts_html(readouts: list[dict], val_size: int) -> str:
+    """Borderless label→value rows (a <dl>): label left, tabular value right."""
+    rows = ""
+    for i, r in enumerate(readouts):
+        unit = (f'<span class="audash-read-unit">{r["unit"]}</span>' if r["unit"] else "")
+        rows += (
+            f'<div class="audash-read" style="--i:{i};">'
+            f'<dt class="audash-read-label">{r["label"]}</dt>'
+            f'<dd class="audash-read-val"><span class="audash-num" '
+            f'style="font-size:{val_size}px;color:{r["color"]};">{r["value"]}</span>{unit}</dd>'
+            f'</div>'
         )
-    return (
-        '<div style="margin-bottom:20px;">'
-        '<div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:10px;">'
-        'Instrument Readout · MYR · Asia/Kuala_Lumpur</div>'
-        '<dl class="audash-readout">'
-        f'{items}</dl></div>'
-    )
+    return rows
+
+
+def _readout_zones_html(market: dict, theme: dict) -> str:
+    """The 'quiet ledger': three borderless data zones in one ruled bench —
+    Zone A the Market (live rates, prominent), Zone B the Portfolio (PnL made
+    large/distinct), Zone C the Engine (raw readings, tighter + secondary)."""
+    t = theme
+    market_rows = _readouts_html(presenter.build_market_readouts(market, t), 22)
+    port = presenter.build_portfolio_readouts(market, t)
+    port_rows = _readouts_html(port["secondary"], 18)
+    p = port["pnl"]
+    engine = presenter.build_engine_readouts(market, t)
+    eng_cells = ""
+    for r in engine:
+        unit = (f'<span class="audash-eng-unit">{r["unit"]}</span>' if r["unit"] else "")
+        eng_cells += (
+            f'<div class="audash-eng">'
+            f'<dt class="audash-eng-label">{r["label"]}</dt>'
+            f'<dd class="audash-eng-val"><span class="audash-num" '
+            f'style="color:{r["color"]};">{r["value"]}</span>{unit}</dd></div>'
+        )
+    return f"""
+    <section class="audash-bench">
+      <div class="audash-bench-row">
+        <div class="audash-zone">
+          <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Market · MYR/g · Asia/Kuala_Lumpur</div>
+          <dl class="audash-readout">{market_rows}</dl>
+        </div>
+        <div class="audash-vrule" aria-hidden="true"></div>
+        <div class="audash-zone audash-zone-portfolio">
+          <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Portfolio</div>
+          <dl class="audash-readout audash-readout-stack">{port_rows}</dl>
+          <div class="audash-pnl">
+            <span class="audash-pnl-label">{p['label']}</span>
+            <div class="audash-pnl-row">
+              <span aria-hidden="true" class="audash-pnl-shape" style="color:{p['color']};">{p['shape']}</span>
+              <span class="audash-num audash-pnl-val" style="color:{p['color']};">{p['value']}</span>
+              <span class="audash-pnl-unit">{p['unit']}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="audash-hrule" aria-hidden="true"></div>
+      <div class="audash-zone">
+        <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:11px;">The Engine</div>
+        <dl class="audash-engine">{eng_cells}</dl>
+      </div>
+    </section>"""
 
 
 def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
@@ -101,8 +148,8 @@ def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
             f'<div role="row" style="display:grid;grid-template-columns:1fr auto auto;'
             f'align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid {t["line"]};">'
             f'<div role="rowheader"><div style="font-family:{t["f_ui"]};font-size:14px;font-weight:500;color:{t["text"]};">{s["label"]}</div>'
-            f'<div style="font-family:{t["f_data"]};font-size:12px;color:{t["muted"]};">{s["detail"]}</div></div>'
-            f'<span role="cell" aria-label="reading {s["value"]}" class="audash-num" style="font-family:{t["f_data"]};font-size:13px;color:{t["sub"]};">{s["value"]}</span>'
+            f'<div style="font-family:{t["f_data"]};font-size:13px;color:{t["sub"]};">{s["detail"]}</div></div>'
+            f'<span role="cell" aria-label="reading {s["value"]}" class="audash-num" style="font-family:{t["f_data"]};font-size:14px;color:{t["sub"]};">{s["value"]}</span>'
             f'<span role="cell" aria-label="vote {s["vote_text"]}" class="audash-num audash-vote" style="min-width:38px;text-align:center;'
             f'color:{s["vote_color"]};border:1px solid {s["vote_color"]};">{s["vote_text"]}</span></div>'
         )
@@ -127,11 +174,11 @@ def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
       <div class="audash-panel" style="display:flex;flex-direction:column;">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
           <span class="audash-eyebrow" role="heading" aria-level="2">Gold / Silver Ratio</span>
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:20px;color:{t['text']};">{presenter.fmt(gsr_band['value'], 1)}</span>
+          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:22px;color:{t['text']};">{presenter.fmt(gsr_band['value'], 1)}</span>
         </div>
-        <div style="font-family:{t['f_ui']};font-size:12px;color:{label_color};margin-bottom:8px;">{pos['label']}</div>
+        <div style="font-family:{t['f_ui']};font-size:13px;color:{label_color};margin-bottom:8px;">{pos['label']}</div>
         <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:170px;">{svg}</div>
-        <div style="display:flex;justify-content:space-between;font-family:{t['f_data']};font-size:11px;color:{t['muted']};">
+        <div style="display:flex;justify-content:space-between;font-family:{t['f_data']};font-size:12px;color:{t['muted']};">
           <span>lower {presenter.fmt(gsr_band['lower'], 1)}</span><span>band</span><span>upper {presenter.fmt(gsr_band['upper'], 1)}</span>
         </div>
       </div>
@@ -150,8 +197,7 @@ def render_dashboard(model: dict) -> None:
     st.markdown(_verdict_consensus_html(view, reason, detail, _eyebrow(model)),
                 unsafe_allow_html=True)
 
-    cells = presenter.build_metric_cells(model["market"], THEME)
-    st.markdown(_metric_grid_html(cells), unsafe_allow_html=True)
+    st.markdown(_readout_zones_html(model["market"], THEME), unsafe_allow_html=True)
 
     rows = presenter.build_signal_rows(sig, model["signal_inputs"], THEME)
     band = model["gsr_band"]

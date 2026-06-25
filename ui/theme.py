@@ -15,7 +15,7 @@ THEME: dict[str, object] = {
     "line": "#2E2A24",
     "text": "#EDE7D9",
     "sub": "#B8AF9F",
-    "muted": "#989186",
+    "muted": "#ABA493",
     "accent": "#C8A24C",
     "accent_bright": "#E8C877",
     "gold": "#C8A24C",
@@ -58,25 +58,33 @@ IDENTITY_CSS = f"""
     border-radius: 6px;
     padding: 24px;
 }}
+/* Condensed header panels — tighter so the live rates sit higher on the page. */
+.audash-panel-verdict {{ padding: 18px 22px; }}
 .audash-eyebrow {{
     font-family: {THEME['f_data']};
-    font-size: 11px;
-    letter-spacing: 0.18em;
+    font-size: 12px;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: {THEME['muted']};
+    color: {THEME['sub']};
 }}
 
 /* Verdict hero --------------------------------------------------------- */
 .audash-verdict-word {{
     font-family: {THEME['f_display']};
     font-weight: 700;
-    font-size: 96px;
+    font-size: 72px;
     line-height: 0.9;
     letter-spacing: 0.01em;
 }}
+/* The verdict glyph (▲ ▼ ○) — shape-encodes the call beside the word/color. */
+.audash-verdict-shape {{
+    font-family: {THEME['f_data']};
+    font-size: 34px;
+    line-height: 0.9;
+}}
 .audash-verdict-metal {{
     font-family: {THEME['f_display']};
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 500;
     color: {THEME['sub']};
 }}
@@ -99,28 +107,96 @@ IDENTITY_CSS = f"""
     border-radius: 2px;
 }}
 
-/* Metric grid ---------------------------------------------------------- */
-.audash-cell {{
-    border: 1px solid {THEME['line']};
-    border-radius: 5px;
-    padding: 15px 16px;
+/* Readout bench — three borderless zones (Market / Portfolio / Engine) -- */
+/* One ruled "bench" surface instead of a dozen boxes: a hairline frame top and
+   bottom, a vertical rule splitting the Market from the Portfolio, a horizontal
+   rule above the secondary Engine strip. Every value is tabular so the digits
+   stack like a mechanical scale. */
+.audash-bench {{
+    border-top: 1px solid {THEME['line']};
+    border-bottom: 1px solid {THEME['line']};
+    padding: 18px 0 16px;
+    margin-bottom: 22px;
 }}
-.audash-cell-label {{
+.audash-bench-row {{
+    display: grid;
+    grid-template-columns: 1.55fr 1px 1fr;
+    column-gap: 26px;
+    align-items: stretch;
+}}
+.audash-vrule, .audash-hrule {{ background: {THEME['line']}; }}
+.audash-hrule {{ height: 1px; margin: 16px 0; }}
+.audash-zone-portfolio {{ display: flex; flex-direction: column; }}
+
+/* Label -> value readout rows (Market grid + Portfolio secondary stack). */
+.audash-readout {{ display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }}
+.audash-readout-stack {{ display: flex; flex-direction: column; }}
+.audash-read {{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+}}
+.audash-read-label {{
     font-family: {THEME['f_ui']};
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    color: {THEME['muted']};
-    margin-bottom: 9px;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: {THEME['sub']};
 }}
-.audash-cell-value {{
+.audash-read-val {{
     font-family: {THEME['f_data']};
     font-weight: 600;
-    font-size: 25px;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }}
-.audash-cell-unit {{ font-family: {THEME['f_data']}; font-size: 11px; color: {THEME['muted']}; }}
+.audash-read-unit {{ font-family: {THEME['f_data']}; font-size: 11px; color: {THEME['muted']}; margin-left: 5px; }}
+
+/* Portfolio PnL — the emphasized readout: large, sign-shaped, sign-colored. */
+.audash-pnl {{ margin-top: auto; padding-top: 14px; }}
+.audash-pnl-label {{
+    font-family: {THEME['f_ui']};
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: {THEME['sub']};
+}}
+.audash-pnl-row {{ display: flex; align-items: baseline; gap: 10px; margin-top: 7px; }}
+.audash-pnl-shape {{ font-family: {THEME['f_data']}; font-size: 22px; line-height: 1; }}
+.audash-pnl-val {{
+    font-family: {THEME['f_data']};
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}}
+.audash-pnl-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
+
+/* Engine strip — secondary raw readings, tight and small. */
+.audash-engine {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }}
+.audash-eng {{ display: flex; flex-direction: column; gap: 6px; }}
+.audash-eng-label {{
+    font-family: {THEME['f_ui']};
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: {THEME['muted']};
+}}
+.audash-eng-val {{
+    font-family: {THEME['f_data']};
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}}
+.audash-eng-unit {{ font-family: {THEME['f_data']}; font-size: 10px; color: {THEME['muted']}; margin-left: 4px; }}
+
+/* Kept for forms.py quote/confirm rows. */
+.audash-cell-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
 
 /* Ledger / breakdown --------------------------------------------------- */
 .audash-vote {{
@@ -144,15 +220,11 @@ IDENTITY_CSS = f"""
     white-space: nowrap;
     border: 0;
 }}
-/* Native <dl> readout + trade rows: strip the UA margins/indent Streamlit
+/* Native <dl> readouts + trade rows: strip the UA margins/indent Streamlit
    may re-assert at runtime, so the description lists lay out as designed. */
-.audash-readout,
-.audash-readout dd,
-.audash-trade,
-.audash-trade dt,
-.audash-trade dd {{ margin: 0 !important; }}
-.audash-readout dt.audash-cell-label {{ margin: 0 0 9px !important; }}
-.audash-readout dd.audash-cell-dd {{ display: flex; align-items: baseline; gap: 5px; }}
+.audash-readout, .audash-readout dt, .audash-readout dd,
+.audash-engine, .audash-engine dt, .audash-engine dd,
+.audash-trade, .audash-trade dt, .audash-trade dd {{ margin: 0 !important; }}
 
 /* Motion — "a reading is taken, then it settles" ---------------------- */
 /* Three entrance gestures, each deliberately distinct so the page never fades
@@ -203,9 +275,9 @@ IDENTITY_CSS = f"""
         animation: audash-resolve 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
         animation-delay: 90ms;
     }}
-    .audash-cell {{
+    .audash-read {{
         animation: audash-online 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        animation-delay: calc(var(--i, 0) * 26ms);
+        animation-delay: calc(var(--i, 0) * 30ms);
     }}
     .audash-beam {{ animation: audash-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
     .audash-pan {{ animation: audash-pan-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
@@ -251,11 +323,13 @@ IDENTITY_CSS = f"""
    degrade gracefully if the window is narrowed — 4→2 columns, side-by-side→
    stacked — instead of overflowing. Owned here as classes, not inline styles,
    so the breakpoint is real (inline grids can't carry a media query). */
-.audash-readout {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }}
 .audash-duo {{ display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }}
-@media (max-width: 680px) {{
-    .audash-readout {{ grid-template-columns: repeat(2, 1fr); }}
+@media (max-width: 760px) {{
     .audash-duo {{ grid-template-columns: 1fr; }}
+    .audash-bench-row {{ grid-template-columns: 1fr; row-gap: 18px; }}
+    .audash-vrule {{ display: none; }}
+    .audash-readout {{ grid-template-columns: 1fr; }}
+    .audash-engine {{ grid-template-columns: repeat(2, 1fr); row-gap: 14px; }}
 }}
 
 /* Streamlit chrome tidy ------------------------------------------------ */

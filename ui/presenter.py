@@ -37,6 +37,13 @@ def verdict_color(recommendation: str, theme: dict) -> str:
     return {"BUY": theme["buy"], "SELL": theme["sell"]}.get(recommendation, theme["hold"])
 
 
+def verdict_shape(recommendation: str) -> str:
+    """Geometric glyph for the verdict, encoding direction by *shape* not hue —
+    BUY ▲, SELL ▼, HOLD ○ — so the call reads under colorblindness (Principle:
+    BUY/HOLD/SELL must never rely on green/red alone)."""
+    return {"BUY": "▲", "SELL": "▼"}.get(recommendation, "○")
+
+
 def vote_text(vote: int) -> str:
     """Render a single signal vote as '+1' / '0' / '-1'."""
     if vote > 0:
@@ -276,45 +283,60 @@ def build_recent_quotes(quotes, limit: int = 10) -> list[dict]:
     return rows
 
 
-# --- metric grid view-model --------------------------------------------------
+# --- readout zones: Market / Portfolio / Engine ------------------------------
+# Three borderless "quiet ledger" zones replace the old 12-box grid. Each helper
+# returns plain readout dicts {label, value, unit, color}; the Streamlit layer
+# lays them out with dividers + whitespace, not a card apiece.
 
-def metric_tone(tone: str, theme: dict) -> dict[str, str]:
-    """Tint / top-edge / value-color for a gold | silver | neutral cell."""
-    if tone == "gold":
-        return {"tint": theme["gold_tint"], "edge": theme["gold_edge"], "color": theme["gold"]}
-    if tone == "silver":
-        return {"tint": theme["silver_tint"], "edge": theme["silver_edge"], "color": theme["silver"]}
-    return {"tint": theme["neutral_tint"], "edge": theme["line"], "color": theme["text"]}
+def _readout(label: str, value: str, unit: str, color: str) -> dict[str, str]:
+    return {"label": label, "value": value, "unit": unit, "color": color}
 
 
-def _cell(label: str, value: str, unit: str, tone: str, theme: dict) -> dict[str, str]:
-    style = metric_tone(tone, theme)
-    return {"label": label, "value": value, "unit": unit, **style}
+def _sign_color(n: float, theme: dict) -> str:
+    """Buy for positive, sell for negative, muted at exactly zero."""
+    return theme["buy"] if n > 0 else theme["sell"] if n < 0 else theme["muted"]
 
 
-def build_metric_cells(market: dict, theme: dict) -> list[dict[str, str]]:
-    """The 12-cell instrument readout (order matches AuDash.dc.html)."""
-    cells = [
-        _cell("Gold buy", fmt(market["gold_buy"]), "MYR/g", "gold", theme),
-        _cell("Gold sell", fmt(market["gold_sell"]), "MYR/g", "gold", theme),
-        _cell("Silver buy", fmt(market["silver_buy"]), "MYR/g", "silver", theme),
-        _cell("Silver sell", fmt(market["silver_sell"]), "MYR/g", "silver", theme),
-        _cell("Eff. buy spread", fmt(market["buy_spread"]), "MYR/g", "neutral", theme),
-        _cell("Eff. sell spread", fmt(market["sell_spread"]), "MYR/g", "neutral", theme),
-        _cell("Holdings (gold)", fmt(market["holdings"], 1), "g", "gold", theme),
-        _cell("Cost basis", fmt(market["cost_basis"]), "MYR/g", "gold", theme),
-        _cell("Unrealized PnL", signed(market["pnl"]), "MYR", "neutral", theme),
-        _cell("RSI", fmt(market["rsi"], 1), "", "neutral", theme),
-        _cell("%B", fmt(market["percent_b"], 2), "", "neutral", theme),
-        _cell("Sentiment", signed(market["sentiment"], 1), "/ ±5", "neutral", theme),
+def build_market_readouts(market: dict, theme: dict) -> list[dict[str, str]]:
+    """Zone A — the four live platform rates, gold then silver (metal-colored)."""
+    g, s = theme["gold"], theme["silver"]
+    return [
+        _readout("Gold buy", fmt(market["gold_buy"]), "MYR/g", g),
+        _readout("Gold sell", fmt(market["gold_sell"]), "MYR/g", g),
+        _readout("Silver buy", fmt(market["silver_buy"]), "MYR/g", s),
+        _readout("Silver sell", fmt(market["silver_sell"]), "MYR/g", s),
     ]
-    # PnL and sentiment are signed-magnitude readouts: color them by sign.
-    pnl_cell = cells[8]
-    pnl_cell["color"] = theme["buy"] if market["pnl"] >= 0 else theme["sell"]
-    sent_cell = cells[11]
-    s = market["sentiment"]
-    sent_cell["color"] = theme["buy"] if s > 0 else theme["sell"] if s < 0 else theme["muted"]
-    return cells
+
+
+def pnl_readout(pnl: float, theme: dict) -> dict[str, str]:
+    """The emphasized portfolio PnL — encoded three ways (sign + shape + color)
+    so gain/loss survives colorblindness: ▲ gain, ▼ loss, ○ flat."""
+    shape = "▲" if pnl > 0 else "▼" if pnl < 0 else "○"
+    return {"label": "Unrealized PnL", "value": signed(pnl), "unit": "MYR",
+            "color": _sign_color(pnl, theme), "shape": shape}
+
+
+def build_portfolio_readouts(market: dict, theme: dict) -> dict[str, object]:
+    """Zone B — secondary holdings/cost basis plus the emphasized PnL."""
+    return {
+        "secondary": [
+            _readout("Holdings", fmt(market["holdings"], 1), "g", theme["text"]),
+            _readout("Cost basis", fmt(market["cost_basis"]), "MYR/g", theme["text"]),
+        ],
+        "pnl": pnl_readout(market["pnl"], theme),
+    }
+
+
+def build_engine_readouts(market: dict, theme: dict) -> list[dict[str, str]]:
+    """Zone C — secondary raw engine readings (pre-vote), shown tight + small."""
+    return [
+        _readout("RSI", fmt(market["rsi"], 1), "", theme["text"]),
+        _readout("%B", fmt(market["percent_b"], 2), "", theme["text"]),
+        _readout("Sentiment", signed(market["sentiment"], 1), "/ ±5",
+                 _sign_color(market["sentiment"], theme)),
+        _readout("Eff. buy spread", fmt(market["buy_spread"]), "MYR/g", theme["muted"]),
+        _readout("Eff. sell spread", fmt(market["sell_spread"]), "MYR/g", theme["muted"]),
+    ]
 
 
 # --- per-signal breakdown view-model -----------------------------------------
@@ -358,6 +380,7 @@ def verdict_view(signal_result: dict, threshold: int, theme: dict) -> dict[str, 
     gate = sentiment_gate(signal_result)
     return {
         "word": final,
+        "shape": verdict_shape(final),
         "metal_word": "" if final == "HOLD" else "GOLD",
         "color": verdict_color(final, theme),
         "stale": signal_result["sentiment_stale"],
