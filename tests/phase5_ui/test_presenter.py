@@ -484,3 +484,21 @@ def test_build_recent_quotes_newest_first_with_raw_keys():
 
 def test_build_recent_quotes_empty_is_empty_list():
     assert presenter.build_recent_quotes(pd.DataFrame()) == []
+
+
+# --- back-dated trade rate prefill -------------------------------------------
+
+def test_backdated_rate_prefills_uses_quote_when_present():
+    row = {"buy_rate_myr": 433.0, "sell_rate_myr": 428.0}
+    assert presenter.backdated_rate_prefills(row, 999.0, 888.0) == {
+        "buy": 433.0, "sell": 428.0}
+
+
+def test_backdated_rate_prefills_falls_back_to_live_when_no_quote():
+    assert presenter.backdated_rate_prefills(None, 999.0, 888.0) == {
+        "buy": 999.0, "sell": 888.0}
+
+
+def test_active_side_rate_picks_side_by_action():
+    assert presenter.active_side_rate("BUY", 100.0, 90.0) == 100.0
+    assert presenter.active_side_rate("SELL", 100.0, 90.0) == 90.0

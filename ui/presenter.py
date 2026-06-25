@@ -191,6 +191,26 @@ def resolve_trade_amounts(mode: str, primary_value: object,
     raise ValueError(f"mode must be 'cash' or 'mass', got {mode!r}")
 
 
+def backdated_rate_prefills(quote_row: dict | None, live_buy: float,
+                            live_sell: float) -> dict[str, float]:
+    """Prefill values for the two back-dated platform-rate inputs.
+
+    Returns {"buy", "sell"} from the recorded daily_quotes row for the picked
+    (date, metal) when one exists (its buy_rate_myr / sell_rate_myr), else
+    today's live buy/sell. `quote_row` is that single quote row as a dict, or
+    None when the date has no recorded quote.
+    """
+    if quote_row is not None:
+        return {"buy": float(quote_row["buy_rate_myr"]),
+                "sell": float(quote_row["sell_rate_myr"])}
+    return {"buy": float(live_buy), "sell": float(live_sell)}
+
+
+def active_side_rate(action: str, buy: float, sell: float) -> float:
+    """The platform rate a trade executes at: buy for BUY, sell for SELL."""
+    return float(buy) if action == "BUY" else float(sell)
+
+
 # --- trade ledger: confirm line, recent rows, reversal -----------------------
 
 def trade_confirm_line(action: str, metal: str, mass_grams: float,
