@@ -206,10 +206,24 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
     Carries both display strings (for the row) and the raw numeric fields
     (so the void action can build an exact offsetting entry). `trades` is the
     fetch_transactions DataFrame; an empty/None frame yields an empty list.
+
+    A void's offsetting reversal (non-null `reverses_id`) is folded away: the
+    reversal row is dropped and the trade it reverses is flagged `voided` so the
+    renderer can collapse the pair into one dimmed line. `limit` is applied after
+    reversals are dropped, so churn never evicts real trades from the panel.
     """
     if trades is None or len(trades) == 0:
         return []
-    recent = trades.sort_values("timestamp", ascending=False).head(limit)
+    if "reverses_id" in trades.columns:
+        links = trades["reverses_id"]
+        reversed_ids = set(links.dropna().astype(str))
+        reversal_row_ids = set(trades.loc[links.notna(), "id"].astype(str))
+    else:
+        reversed_ids = set()
+        reversal_row_ids = set()
+
+    visible = trades[~trades["id"].astype(str).isin(reversal_row_ids)]
+    recent = visible.sort_values("timestamp", ascending=False).head(limit)
     rows = []
     for _, r in recent.iterrows():
         action = str(r["action_type"])
@@ -227,6 +241,7 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
             "execution_rate_myr": float(r["execution_rate_myr"]),
             "mass_grams": float(r["mass_grams"]),
             "fiat_total_myr": float(r["fiat_total_myr"]),
+            "voided": str(r["id"]) in reversed_ids,
         })
     return rows
 

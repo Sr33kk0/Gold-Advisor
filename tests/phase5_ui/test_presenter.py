@@ -350,6 +350,20 @@ def _trades_df():
     ])
 
 
+def _trades_with_void_df():
+    return pd.DataFrame([
+        {"id": "a", "timestamp": "2026-06-20T12:00:00+00:00", "action_type": "BUY",
+         "metal": "GOLD", "execution_rate_myr": 400.0, "mass_grams": 2.0,
+         "fiat_total_myr": 800.0, "reverses_id": None},
+        {"id": "rev-a", "timestamp": "2026-06-21T12:00:00+00:00",
+         "action_type": "SELL", "metal": "GOLD", "execution_rate_myr": 400.0,
+         "mass_grams": 2.0, "fiat_total_myr": 800.0, "reverses_id": "a"},
+        {"id": "b", "timestamp": "2026-06-22T12:00:00+00:00", "action_type": "BUY",
+         "metal": "SILVER", "execution_rate_myr": 5.0, "mass_grams": 10.0,
+         "fiat_total_myr": 50.0, "reverses_id": None},
+    ])
+
+
 def test_build_recent_trades_empty_returns_empty_list():
     empty = pd.DataFrame(columns=["id", "timestamp", "action_type", "metal",
                                   "execution_rate_myr", "mass_grams", "fiat_total_myr"])
@@ -385,6 +399,39 @@ def test_reversal_entry_flips_action_and_preserves_amounts():
                    "fiat_total_myr": 800.0}
     back = presenter.reversal_entry("SELL", "SILVER", 5.0, 10.0, 50.0)
     assert back["action_type"] == "BUY"
+
+
+def test_build_recent_trades_marks_voided_and_drops_reversal():
+    rows = presenter.build_recent_trades(_trades_with_void_df(), THEME)
+    ids = [r["id"] for r in rows]
+    assert "rev-a" not in ids               # reversal folded away
+    assert ids == ["b", "a"]                # order unchanged, voided stays in place
+    assert next(r for r in rows if r["id"] == "a")["voided"] is True
+    assert next(r for r in rows if r["id"] == "b")["voided"] is False
+
+
+def test_build_recent_trades_limit_counts_only_visible_trades():
+    df = pd.DataFrame([
+        {"id": "t1", "timestamp": "2026-06-01T12:00:00+00:00", "action_type": "BUY",
+         "metal": "GOLD", "execution_rate_myr": 400.0, "mass_grams": 1.0,
+         "fiat_total_myr": 400.0, "reverses_id": None},
+        {"id": "t2", "timestamp": "2026-06-02T12:00:00+00:00", "action_type": "BUY",
+         "metal": "GOLD", "execution_rate_myr": 400.0, "mass_grams": 1.0,
+         "fiat_total_myr": 400.0, "reverses_id": None},
+        {"id": "rev", "timestamp": "2026-06-09T12:00:00+00:00", "action_type": "SELL",
+         "metal": "GOLD", "execution_rate_myr": 400.0, "mass_grams": 1.0,
+         "fiat_total_myr": 400.0, "reverses_id": "t2"},
+    ])
+    rows = presenter.build_recent_trades(df, THEME, limit=2)
+    # reversal dropped first, so its recent timestamp never evicts t1
+    assert [r["id"] for r in rows] == ["t2", "t1"]
+    assert next(r for r in rows if r["id"] == "t2")["voided"] is True
+
+
+def test_build_recent_trades_legacy_frame_without_link_column():
+    rows = presenter.build_recent_trades(_trades_df(), THEME)
+    assert {r["id"] for r in rows} == {"a", "b"}
+    assert all(r["voided"] is False for r in rows)
 
 
 # --- quote preview + recent quotes -------------------------------------------
