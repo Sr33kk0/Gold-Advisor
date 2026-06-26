@@ -55,3 +55,10 @@ def test_default_settings_has_all_expected_keys():
         "BASE_CURRENCY", "TIMEZONE",
     }
     assert expected <= set(DEFAULT_SETTINGS)
+
+
+def test_risk_policy_defaults_seeded(db_conn):
+    seed_default_settings(db_conn)
+    assert get_setting(db_conn, "stop_loss_pct") == "5.0"
+    assert get_setting(db_conn, "take_profit_pct") == "10.0"
+    assert get_setting(db_conn, "max_position_grams") == "100.0"

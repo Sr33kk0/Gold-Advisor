@@ -208,6 +208,10 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "gsr_band_deviations": "2",
     # Signal fusion
     "quant_vote_threshold": "2",
+    # Risk policy (position-aware overrides)
+    "stop_loss_pct": "5.0",
+    "take_profit_pct": "10.0",
+    "max_position_grams": "100.0",
     # Sentiment
     "sentiment_max_age_days": "2",
     "GEMINI_MODEL": "gemini-3-flash-preview",
