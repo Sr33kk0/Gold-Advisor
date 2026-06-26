@@ -46,6 +46,16 @@ def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) 
     stale = '<span class="audash-stale">STALE</span>' if view["stale"] else ""
     metal = (f'<span class="audash-verdict-metal">{view["metal_word"]}</span>'
              if view["metal_word"] else "")
+    overridden = view.get("is_overridden")
+    # When the risk desk owns the call, mute the directional consensus so a
+    # strong BUY meter never reads as contradicting the SELL banner.
+    consensus_num_color = t["muted"] if overridden else t["text"]
+    quant_color = t["muted"] if overridden else view["quant_color"]
+    decoupled_note = (
+        f'<div style="font-family:{t["f_data"]};font-size:11px;'
+        f'letter-spacing:0.04em;color:{t["muted"]};margin-top:6px;">'
+        f'Directional alpha decoupled by Risk Policy</div>'
+        if overridden else "")
     return f"""
     <div class="audash-duo">
       <div class="audash-panel audash-panel-verdict">
@@ -61,10 +71,10 @@ def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) 
       <div class="audash-panel audash-panel-verdict" style="display:flex;flex-direction:column;">
         <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:8px;">Consensus</div>
         <div style="display:flex;align-items:baseline;gap:8px;">
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:38px;line-height:1;color:{t['text']};">{view['net_signed']}</span>
+          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:38px;line-height:1;color:{consensus_num_color};">{view['net_signed']}</span>
           <span style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};">net votes</span>
         </div>
-        <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:3px;">threshold ±{view['threshold']} → quant <span style="color:{view['quant_color']};">{view['quant_bias']}</span></div>
+        <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:3px;">threshold ±{view['threshold']} → quant <span style="color:{quant_color};">{view['quant_bias']}</span></div>{decoupled_note}
         <div style="height:1px;background:{t['line']};margin:13px 0;"></div>
         <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:7px;">Sentiment gate</div>
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">

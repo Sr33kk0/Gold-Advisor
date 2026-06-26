@@ -11,7 +11,7 @@ from datetime import timedelta
 from streamlit.testing.v1 import AppTest
 
 from database.connection import (
-    get_db_connection, write_sentiment_snapshot, write_spot_prices,
+    get_db_connection, log_transaction, write_sentiment_snapshot, write_spot_prices,
 )
 from utils.timeutil import now_utc
 
@@ -160,3 +160,21 @@ def test_nav_to_settings_reveals_inputs(tmp_path, monkeypatch):
     assert not at.exception
     keys = [w.key for w in at.text_input]
     assert "set_rsi_period" in keys
+
+
+def _seed_losing(db_file) -> None:
+    """Prices + a gold buy far above market -> stop-loss trips on the dashboard."""
+    _seed(db_file)
+    with get_db_connection(str(db_file)) as conn:
+        log_transaction(conn, "BUY", "GOLD", 900.0, 10.0, 9000.0)
+
+
+def test_dashboard_decouples_consensus_on_override(tmp_path, monkeypatch):
+    _seed_losing(tmp_path / "audash.db")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    at = AppTest.from_file(APP, default_timeout=60).run()
+
+    assert not at.exception
+    blob = " ".join(m.value for m in at.markdown)
+    assert "SELL" in blob
+    assert "decoupled" in blob.lower()      # the risk-policy decoupling note
