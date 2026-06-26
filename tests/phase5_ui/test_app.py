@@ -177,4 +177,17 @@ def test_dashboard_decouples_consensus_on_override(tmp_path, monkeypatch):
     assert not at.exception
     blob = " ".join(m.value for m in at.markdown)
     assert "SELL" in blob
-    assert "decoupled" in blob.lower()      # the risk-policy decoupling note
+    # Case-sensitive: isolates the Title-Case note injected by _verdict_consensus_html
+    # (not the lowercase "risk policy" emitted by presenter.gate_detail's prose).
+    assert "Directional alpha decoupled by Risk Policy" in blob
+
+
+def test_normal_dashboard_has_no_decoupled_note(tmp_path, monkeypatch):
+    """The title-case consensus note must NOT appear when there is no losing
+    position (i.e. is_overridden is False).  Proves the note is tied
+    exclusively to the override path, not leaked by gate_detail's prose."""
+    at = _run(tmp_path, monkeypatch)
+
+    assert not at.exception
+    blob = " ".join(m.value for m in at.markdown)
+    assert "Directional alpha decoupled by Risk Policy" not in blob
