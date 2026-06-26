@@ -210,6 +210,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "quant_vote_threshold": "2",
     # Sentiment
     "sentiment_max_age_days": "2",
+    "GEMINI_MODEL": "gemini-3-flash-preview",
     # Locale
     "BASE_CURRENCY": "MYR",
     "TIMEZONE": "Asia/Kuala_Lumpur",

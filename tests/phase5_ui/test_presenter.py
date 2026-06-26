@@ -283,6 +283,35 @@ def test_gate_detail_passed_mentions_clears():
     assert "clear" in detail.lower()
 
 
+def test_gate_detail_neutral_surfaces_live_sentiment_and_age():
+    # Quant is neutral, but a fresh sentiment reading exists. The panel must
+    # still show the live score + freshness (show-the-why) so a refresh that
+    # can't move a neutral verdict still visibly registers, while explaining
+    # there is no quant trade for sentiment to gate.
+    sig = {"sentiment_stale": False, "quant_bias": "HOLD",
+           "final_recommendation": "HOLD", "sentiment_score": 0.8, "net_votes": 0}
+    detail = presenter.gate_detail(sig, age=0.0, max_age=2.0, threshold=2)
+    assert "+0.8" in detail                       # live score is surfaced
+    assert "0.0 d" in detail                       # freshness is surfaced
+    assert "no quant trade" in detail.lower()      # still explains the non-gate
+    assert "+0 within ±2" in detail                # net-vote context retained
+
+
+def test_sentiment_refresh_note_reports_score_and_neutral_verdict():
+    # A successful refresh against a neutral quant engine: report the new score
+    # and make clear the verdict is unaffected (not a broken button).
+    note = presenter.sentiment_refresh_note(0.8, "HOLD")
+    assert "+0.8" in note
+    assert "HOLD" in note
+    assert "neutral" in note.lower()
+
+
+def test_sentiment_refresh_note_active_gate_names_the_bias():
+    note = presenter.sentiment_refresh_note(-1.5, "SELL")
+    assert "-1.5" in note
+    assert "SELL" in note
+
+
 def test_settings_groups_cover_keys_and_mask_api_keys():
     settings = {
         "rsi_period": "14", "rsi_oversold": "30", "rsi_overbought": "70",
@@ -302,6 +331,15 @@ def test_settings_groups_cover_keys_and_mask_api_keys():
     assert "default_buy_spread" in by_key
     assert by_key["rsi_period"]["value"] == "14"
     assert by_key["GEMINI_API_KEY"]["type"] == "password"
+
+
+def test_settings_groups_includes_editable_gemini_model():
+    settings = {"GEMINI_MODEL": "gemini-3-flash-preview"}
+    groups = presenter.settings_groups(settings)
+    by_key = {f["key"]: f for g in groups for f in g["fields"]}
+    assert "GEMINI_MODEL" in by_key
+    assert by_key["GEMINI_MODEL"]["value"] == "gemini-3-flash-preview"
+    assert by_key["GEMINI_MODEL"]["type"] != "password"  # model id isn't a secret
 
 
 # --- amount parsing (thousands separators / pasted values) -------------------

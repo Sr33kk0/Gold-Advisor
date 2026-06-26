@@ -176,6 +176,20 @@ def test_default_generate_content_requests_json_mime(monkeypatch):
     assert captured["json"]["generationConfig"]["responseMimeType"] == "application/json"
 
 
+def test_default_generate_content_uses_generous_timeout(monkeypatch):
+    captured = {}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        captured["timeout"] = timeout
+        return _FakeResp(_GEMINI_OK_PAYLOAD)
+
+    monkeypatch.setattr(gemini_orchestrator.requests, "post", fake_post)
+    _default_generate_content("P", api_key="K", model_name="gemini-3-flash-preview")
+    # gemini-3 reasoning models routinely take ~25-30s; the timeout must clear that
+    # comfortably or real sentiment refreshes spuriously fail (read timeout).
+    assert captured["timeout"] >= 60
+
+
 def test_default_generate_content_raises_on_http_error(monkeypatch):
     monkeypatch.setattr(gemini_orchestrator.requests, "post",
                         lambda *a, **k: _FakeResp({}, status=429))

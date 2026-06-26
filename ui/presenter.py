@@ -507,15 +507,31 @@ def gate_detail(signal_result: dict, age: float | None,
             return "No sentiment snapshot on record — a fresh read is needed."
         return (f"Last sentiment is {age:.1f} d old, beyond the {max_age:g} d max. "
                 "Stale sentiment forces a conservative HOLD.")
+    age_txt = f" ({age:.1f} d old)" if age is not None else ""
     if gate == "neutral":
         net = signal_result["net_votes"]
-        return f"No quant trade to gate — net {signed_int(net)} within ±{threshold}."
-    age_txt = f" ({age:.1f} d old)" if age is not None else ""
+        return (f"Sentiment {signed(score, 1)}{age_txt} on record — no quant "
+                f"trade to gate yet (net {signed_int(net)} within ±{threshold}).")
     if gate == "passed":
         return (f"Sentiment {signed(score, 1)}{age_txt} is aligned and "
                 f"clears the {quant}.")
     return (f"Sentiment {signed(score, 1)}{age_txt} opposes the {quant} and "
             "vetoes it toward HOLD.")
+
+
+def sentiment_refresh_note(sentiment_score: float, quant_bias: str) -> str:
+    """Confirmation copy for a successful on-demand sentiment refresh.
+
+    Always reports the new score so the refresh visibly registers. When the
+    quant engine is neutral (quant_bias HOLD) it adds that the verdict is
+    unaffected — sentiment only gates a quant BUY/SELL — so a call that doesn't
+    move doesn't read as a broken button (Gated Consensus / Rule 3).
+    """
+    base = f"Sentiment refreshed · new score {signed(sentiment_score, 1)}."
+    if quant_bias == "HOLD":
+        return (f"{base} Quant is neutral, so the verdict stays HOLD — "
+                "sentiment only gates a quant BUY/SELL.")
+    return f"{base} It now feeds the live {quant_bias} gate."
 
 
 # --- settings grouping -------------------------------------------------------
@@ -545,6 +561,7 @@ def settings_groups(settings: dict) -> list[dict[str, object]]:
         {"title": "Locale & keys", "fields": [
             _field("Base currency", "BASE_CURRENCY", settings),
             _field("Timezone", "TIMEZONE", settings),
+            _field("Gemini model", "GEMINI_MODEL", settings),
             _field("Gemini API key", "GEMINI_API_KEY", settings, "password"),
             _field("Commodity API key", "COMMODITY_API_KEY", settings, "password"),
         ]},

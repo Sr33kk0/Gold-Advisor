@@ -25,7 +25,7 @@ def execute_sentiment_pipeline(
     feed_urls: list[str] | None = None,
     keywords: list[str] | None = None,
     market_metrics: dict[str, float] | None = None,
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-3-flash-preview",
     date: str | None = None,
     generate_content_fn: Callable[[str], str] | None = None,
 ) -> dict:

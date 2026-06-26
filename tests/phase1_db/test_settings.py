@@ -41,6 +41,11 @@ def test_seed_does_not_overwrite_existing(db_conn):
     assert get_setting(db_conn, "rsi_period") == "99"
 
 
+def test_seed_includes_gemini_model_default(db_conn):
+    seed_default_settings(db_conn)
+    assert get_setting(db_conn, "GEMINI_MODEL") == "gemini-3-flash-preview"
+
+
 def test_default_settings_has_all_expected_keys():
     expected = {
         "default_buy_spread", "default_sell_spread",

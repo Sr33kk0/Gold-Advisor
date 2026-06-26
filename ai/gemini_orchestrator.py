@@ -19,6 +19,11 @@ logger = logging.getLogger("ai")
 _API_URL = ("https://generativelanguage.googleapis.com/v1beta/"
             "models/{model}:generateContent")
 
+# gemini-3 reasoning models "think" before answering, so a single call can run
+# ~25-30s (occasionally more). Keep this well clear of that tail or real refreshes
+# spuriously fail with a read timeout and fall back to the neutral result.
+_REQUEST_TIMEOUT_S = 90
+
 SENTIMENT_SCORE_MIN = -5.0
 SENTIMENT_SCORE_MAX = 5.0
 
@@ -89,7 +94,7 @@ def _default_generate_content(prompt: str, *, api_key: str, model_name: str) -> 
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseMimeType": "application/json"},
         },
-        timeout=20,
+        timeout=_REQUEST_TIMEOUT_S,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -101,7 +106,7 @@ def generate_sentiment_inference(
     market_metrics: dict[str, float] | None = None,
     *,
     api_key: str,
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-3-flash-preview",
     generate_content_fn: Callable[[str], str] | None = None,
 ) -> dict:
     """Infer structured gold sentiment. Never raises; neutral fallback on error."""

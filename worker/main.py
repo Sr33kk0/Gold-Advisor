@@ -89,7 +89,7 @@ def run_sentiment_cycle(conn) -> None:
     if not api_key:
         logger.info("GEMINI_API_KEY not set; skipping sentiment cycle")
         return
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
     try:
         execute_sentiment_pipeline(
             conn, api_key=api_key, model_name=model_name,

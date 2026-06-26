@@ -647,7 +647,7 @@ def _refresh_sentiment(model: dict, edited: dict) -> None:
             with get_db_connection() as conn:
                 result = execute_sentiment_pipeline(
                     conn, api_key=api_key,
-                    model_name=edited.get("GEMINI_MODEL", "gemini-2.0-flash"),
+                    model_name=edited.get("GEMINI_MODEL") or "gemini-3-flash-preview",
                     market_metrics=metrics)
         except Exception:
             st.error("Couldn't reach the database to refresh sentiment — the "
@@ -657,4 +657,5 @@ def _refresh_sentiment(model: dict, edited: dict) -> None:
     if result.get("failed"):
         st.error("Sentiment refresh failed — prior snapshot kept (capital protection).")
     else:
-        st.success("Sentiment pipeline re-run · fresh snapshot written.")
+        st.success(presenter.sentiment_refresh_note(
+            result["sentiment_score"], model["signal_result"]["quant_bias"]))
