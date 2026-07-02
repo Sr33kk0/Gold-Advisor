@@ -781,3 +781,112 @@ def test_sentiment_text_fallback_uses_score_when_no_summary():
         age=0.5, stale=False, max_age=2.0)
     assert text.startswith("Score +1.5 on record.")
     assert warn is False
+
+
+# --- historical price import -------------------------------------------------
+
+def test_validate_price_import_converts_grams_to_oz():
+    result = presenter.validate_price_import([
+        {"date": "2025-07-01", "gold_per_gram": "488.00", "silver_per_gram": "6.10"},
+    ])
+    assert result["errors"] == []
+    row = result["rows"][0]
+    assert row["date"] == "2025-07-01"
+    assert row["gold_oz"] == pytest.approx(488.00 * 31.1034768)
+    assert row["silver_oz"] == pytest.approx(6.10 * 31.1034768)
+
+
+def test_validate_price_import_flags_missing_columns():
+    result = presenter.validate_price_import([{"date": "2025-07-01", "gold_per_gram": "488"}])
+    assert result["rows"] == []
+    assert "row 1" in result["errors"][0]
+
+
+def test_validate_price_import_flags_unparseable_date():
+    result = presenter.validate_price_import([
+        {"date": "not-a-date", "gold_per_gram": "488", "silver_per_gram": "6.1"},
+    ])
+    assert result["rows"] == []
+    assert "row 1" in result["errors"][0]
+
+
+def test_validate_price_import_flags_non_positive_price():
+    result = presenter.validate_price_import([
+        {"date": "2025-07-01", "gold_per_gram": "0", "silver_per_gram": "6.1"},
+    ])
+    assert result["rows"] == []
+    assert "row 1" in result["errors"][0]
+
+
+def test_validate_price_import_skips_bad_rows_keeps_good_ones():
+    result = presenter.validate_price_import([
+        {"date": "2025-07-01", "gold_per_gram": "488", "silver_per_gram": "6.1"},
+        {"date": "bogus", "gold_per_gram": "488", "silver_per_gram": "6.1"},
+    ])
+    assert len(result["rows"]) == 1
+    assert len(result["errors"]) == 1
+
+
+def test_validate_price_import_normalizes_date_formats():
+    result = presenter.validate_price_import([
+        {"date": "1/7/2025", "gold_per_gram": "488", "silver_per_gram": "6.1"},
+    ])
+    assert result["errors"] == []
+    assert result["rows"][0]["date"] == "2025-07-01"
+
+
+# --- chart range slicing ------------------------------------------------------
+
+def _chart_over(n_days: int) -> dict:
+    """A chart dict of n_days consecutive daily points ending 2026-01-01."""
+    end = datetime(2026, 1, 1).date()
+    dates = [(end - pd.Timedelta(days=n_days - 1 - i)).isoformat()
+            for i in range(n_days)]
+    return {
+        "dates": dates,
+        "price": [float(i) for i in range(n_days)],
+        "bands": pd.DataFrame({
+            "middle": [float(i) for i in range(n_days)],
+            "upper": [float(i) + 1 for i in range(n_days)],
+            "lower": [float(i) - 1 for i in range(n_days)],
+        }),
+        "rsi": [50.0] * n_days,
+        "markers": [{"date": dates[0], "side": "BUY", "price": 0.0},
+                    {"date": dates[-1], "side": "SELL", "price": float(n_days - 1)}]
+        if n_days else [],
+    }
+
+
+def test_slice_chart_range_all_returns_full_chart_unchanged():
+    chart = _chart_over(400)
+    sliced = presenter.slice_chart_range(chart, "All")
+    assert sliced is chart
+
+
+def test_slice_chart_range_30d_keeps_only_last_30_days():
+    chart = _chart_over(400)
+    sliced = presenter.slice_chart_range(chart, "30d")
+    assert len(sliced["dates"]) == 30
+    assert sliced["dates"][-1] == chart["dates"][-1]
+    assert len(sliced["price"]) == 30
+    assert len(sliced["bands"]) == 30
+    assert len(sliced["rsi"]) == 30
+
+
+def test_slice_chart_range_drops_out_of_range_markers():
+    chart = _chart_over(400)
+    sliced = presenter.slice_chart_range(chart, "30d")
+    assert len(sliced["markers"]) == 1
+    assert sliced["markers"][0]["side"] == "SELL"
+
+
+def test_slice_chart_range_handles_short_history_gracefully():
+    chart = _chart_over(10)
+    sliced = presenter.slice_chart_range(chart, "1y")
+    assert len(sliced["dates"]) == 10
+
+
+def test_slice_chart_range_empty_chart_returns_empty():
+    chart = _chart_over(0)
+    sliced = presenter.slice_chart_range(chart, "6m")
+    assert sliced["dates"] == []

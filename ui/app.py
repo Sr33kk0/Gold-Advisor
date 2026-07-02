@@ -236,10 +236,16 @@ def render_dashboard(model: dict) -> None:
     st.markdown(_breakdown_gsr_html(rows, view, band, pos, svg),
                 unsafe_allow_html=True)
 
-    chart = model["chart"]
-    st.markdown('<div class="audash-eyebrow" role="heading" aria-level="2" style="margin:6px 0 8px;">'
-                'Gold spot · Bollinger channel · trade marks</div>',
-                unsafe_allow_html=True)
+    hdr, toggle = st.columns([3, 2])
+    with hdr:
+        st.markdown('<div class="audash-eyebrow" role="heading" aria-level="2" style="margin:6px 0 8px;">'
+                    'Gold spot · Bollinger channel · trade marks</div>',
+                    unsafe_allow_html=True)
+    with toggle:
+        chart_range = st.radio(
+            "Chart range", presenter.CHART_RANGE_OPTIONS, index=1,
+            horizontal=True, key="chart_range", label_visibility="collapsed")
+    chart = presenter.slice_chart_range(model["chart"], chart_range)
     if chart["dates"]:
         price_fig = charts.build_price_figure(
             chart["dates"], chart["price"], chart["bands"], chart["markers"], THEME)
@@ -263,10 +269,7 @@ def render_chrome() -> str:
     st.markdown(
         f'<div role="banner" style="display:flex;align-items:baseline;gap:10px;">'
         f'<span style="font-family:{THEME["f_display"]};font-weight:700;font-size:24px;'
-        f'letter-spacing:0.04em;color:{THEME["text"]};">AuDash</span>'
-        f'<span aria-hidden="true" class="audash-num" style="font-family:{THEME["f_data"]};font-size:11px;'
-        f'letter-spacing:0.12em;color:{THEME["accent"]};border:1px solid {THEME["line"]};'
-        f'padding:2px 6px;border-radius:2px;">999.9</span></div>',
+        f'letter-spacing:0.04em;color:{THEME["text"]};">AuDash</span></div>',
         unsafe_allow_html=True,
     )
     return st.radio("Navigation",

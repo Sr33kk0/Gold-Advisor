@@ -10,7 +10,9 @@ by analytics.signals.generate_trade_signal — the UI never re-implements fusion
 """
 
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
+
+from analytics.spread import GRAMS_PER_TROY_OZ
 
 
 # --- number formatting -------------------------------------------------------
@@ -344,6 +346,33 @@ def build_trade_markers(trades) -> list[dict]:
     ]
 
 
+CHART_RANGE_OPTIONS = ("30d", "3m", "6m", "1y", "All")
+_CHART_RANGE_DAYS = {"30d": 30, "3m": 91, "6m": 182, "1y": 365}
+
+
+def slice_chart_range(chart: dict, range_key: str) -> dict:
+    """Narrow a dashboard chart dict to its trailing `range_key` window.
+
+    Indicators (RSI, bands) are computed upstream over the *full* history so
+    their values stay correct near the visible edge; this only trims what's
+    displayed, keeping `dates`/`price`/`bands`/`rsi`/`markers` aligned.
+    "All" (or an unrecognised key) returns `chart` unchanged.
+    """
+    dates = chart["dates"]
+    if range_key == "All" or range_key not in _CHART_RANGE_DAYS or not dates:
+        return chart
+    cutoff = (date.fromisoformat(dates[-1]) -
+             timedelta(days=_CHART_RANGE_DAYS[range_key])).isoformat()
+    start = next((i for i, d in enumerate(dates) if d > cutoff), len(dates))
+    return {
+        "dates": dates[start:],
+        "price": chart["price"][start:],
+        "bands": chart["bands"].iloc[start:].reset_index(drop=True),
+        "rsi": chart["rsi"][start:],
+        "markers": [m for m in chart["markers"] if m["date"] > cutoff],
+    }
+
+
 def reversal_entry(action_type: str, metal: str, execution_rate_myr: float,
                    mass_grams: float, fiat_total_myr: float) -> dict:
     """The exact offsetting entry that reverses a trade (append-only void).
@@ -674,6 +703,55 @@ def build_morning_briefing(model: dict, theme: dict) -> list[dict]:
             f"unrealized PnL {signed(pnl)} MYR.",
             theme["text"]))
     return lines
+
+
+# --- historical price import -------------------------------------------------
+
+_DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y")
+
+
+def _parse_import_date(raw: str) -> str | None:
+    """Best-effort parse of a CSV date cell to an ISO date string, or None."""
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(raw.strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def validate_price_import(rows: list[dict[str, str]]) -> dict[str, object]:
+    """Validate CSV rows of (date, gold_per_gram, silver_per_gram) MYR prices.
+
+    Returns valid rows converted to per-troy-oz (matching spot_prices' stored
+    unit) plus a human-readable error per rejected row; bad rows never block
+    good ones so one typo doesn't sink the whole import.
+    """
+    valid_rows: list[dict[str, object]] = []
+    errors: list[str] = []
+    for i, row in enumerate(rows, start=1):
+        if not {"date", "gold_per_gram", "silver_per_gram"} <= row.keys():
+            errors.append(f"row {i}: missing date/gold_per_gram/silver_per_gram column")
+            continue
+        iso_date = _parse_import_date(str(row["date"]))
+        if iso_date is None:
+            errors.append(f"row {i}: unparseable date '{row['date']}'")
+            continue
+        try:
+            gold = float(row["gold_per_gram"])
+            silver = float(row["silver_per_gram"])
+        except (TypeError, ValueError):
+            errors.append(f"row {i}: gold/silver price is not a number")
+            continue
+        if gold <= 0 or silver <= 0:
+            errors.append(f"row {i}: gold/silver price must be positive")
+            continue
+        valid_rows.append({
+            "date": iso_date,
+            "gold_oz": gold * GRAMS_PER_TROY_OZ,
+            "silver_oz": silver * GRAMS_PER_TROY_OZ,
+        })
+    return {"rows": valid_rows, "errors": errors}
 
 
 # --- settings grouping -------------------------------------------------------

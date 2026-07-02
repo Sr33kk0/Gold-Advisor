@@ -12,6 +12,8 @@ State transitions go through on_click callbacks so a single natural rerun (not a
 manual st.rerun) advances review -> confirm -> logged.
 """
 
+import csv
+import io
 import os
 from datetime import date, datetime, timedelta, timezone
 
@@ -20,6 +22,7 @@ import streamlit as st
 from database.connection import (
     delete_daily_quote, fetch_daily_quotes, fetch_transactions,
     get_db_connection, log_transaction, set_setting, write_daily_quote,
+    write_spot_prices,
 )
 from ui import presenter
 from ui.theme import THEME
@@ -631,6 +634,52 @@ def render_settings_panel(model: dict) -> None:
     with refresh:
         if st.button("↻ Refresh sentiment now", key="refresh_sentiment"):
             _refresh_sentiment(model, edited)
+
+    _render_price_import()
+
+
+def _render_price_import() -> None:
+    """Bulk-backfill spot_prices from a user-supplied CSV of past prices.
+
+    Lets a fresh install start with real history instead of only the daily
+    reads collected from install day forward.
+    """
+    st.markdown(
+        f'<div class="audash-eyebrow" role="heading" aria-level="2" '
+        f'style="color:{THEME["accent"]};margin:14px 0 6px;">'
+        f'Historical price import</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption("CSV with columns date, gold_per_gram, silver_per_gram (MYR). "
+              "Backfills spot_prices so analytics have history from day one.")
+    uploaded = st.file_uploader("Import historical prices", type="csv",
+                                key="price_import_file")
+    if uploaded is None:
+        return
+
+    reader = csv.DictReader(io.StringIO(uploaded.getvalue().decode("utf-8")))
+    result = presenter.validate_price_import(list(reader))
+    rows, errors = result["rows"], result["errors"]
+    if errors:
+        st.warning(f"{len(errors)} row(s) skipped:\n" +
+                  "\n".join(f"- {e}" for e in errors[:10]))
+    if not rows:
+        st.error("No valid rows to import.")
+        return
+
+    st.write(f"{len(rows)} valid row(s) · {rows[0]['date']} → {rows[-1]['date']}")
+    if st.button(f"Import {len(rows)} row(s)", key="confirm_price_import",
+                type="primary"):
+        try:
+            with get_db_connection() as conn:
+                for row in rows:
+                    write_spot_prices(conn, row["date"], row["gold_oz"],
+                                      row["silver_oz"])
+        except Exception:
+            st.error("Couldn't import — the worker may be mid-write. Nothing "
+                     "was saved; retry in a moment.")
+        else:
+            st.success(f"Imported {len(rows)} day(s) of historical spot prices.")
 
 
 def _refresh_sentiment(model: dict, edited: dict) -> None:

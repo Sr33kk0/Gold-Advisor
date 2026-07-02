@@ -7,6 +7,7 @@ safely with no API key.
 
 from datetime import timedelta
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from database.connection import (
@@ -146,6 +147,41 @@ def test_refresh_sentiment_without_key_warns(tmp_path, monkeypatch):
 
     assert not at.exception
     assert any("Gemini API key" in w.value for w in at.warning)
+
+
+def test_importing_historical_prices_writes_spot_price_rows(tmp_path, monkeypatch):
+    at = _run(tmp_path, monkeypatch)
+    at.radio[0].set_value("Settings").run()
+
+    csv_bytes = (b"date,gold_per_gram,silver_per_gram\n"
+                b"2025-01-01,480.00,6.00\n"
+                b"2025-01-02,482.50,6.05\n")
+    _widget(at.file_uploader, "price_import_file").set_value(
+        ("history.csv", csv_bytes, "text/csv")).run()
+    _widget(at.button, "confirm_price_import").click().run()
+
+    assert not at.exception
+    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+        row = conn.execute(
+            "SELECT gold_rate_per_oz, silver_rate_per_oz FROM spot_prices "
+            "WHERE date='2025-01-01';").fetchone()
+    assert row["gold_rate_per_oz"] == pytest.approx(480.00 * 31.1034768)
+    assert row["silver_rate_per_oz"] == pytest.approx(6.00 * 31.1034768)
+
+
+def test_importing_historical_prices_skips_bad_rows(tmp_path, monkeypatch):
+    at = _run(tmp_path, monkeypatch)
+    at.radio[0].set_value("Settings").run()
+
+    csv_bytes = (b"date,gold_per_gram,silver_per_gram\n"
+                b"2025-01-01,480.00,6.00\n"
+                b"not-a-date,480.00,6.00\n")
+    _widget(at.file_uploader, "price_import_file").set_value(
+        ("history.csv", csv_bytes, "text/csv")).run()
+
+    assert not at.exception
+    assert any("1 row(s) skipped" in w.value for w in at.warning)
+    assert _widget(at.button, "confirm_price_import").label == "Import 1 row(s)"
 
 
 def test_recording_a_quote_writes_a_daily_quote_row(tmp_path, monkeypatch):

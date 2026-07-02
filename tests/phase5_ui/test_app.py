@@ -196,6 +196,18 @@ def test_dashboard_decouples_consensus_on_override(tmp_path, monkeypatch):
     assert "Directional alpha decoupled by Risk Policy" in blob
 
 
+def test_dashboard_chart_range_toggle_defaults_to_3m_and_switches(tmp_path, monkeypatch):
+    at = _run(tmp_path, monkeypatch)
+    range_radio = next(r for r in at.radio if r.key == "chart_range")
+    assert list(range_radio.options) == ["30d", "3m", "6m", "1y", "All"]
+    assert range_radio.value == "3m"
+
+    range_radio.set_value("30d").run()
+    assert not at.exception
+    range_radio = next(r for r in at.radio if r.key == "chart_range")
+    assert range_radio.value == "30d"
+
+
 def test_normal_dashboard_has_no_decoupled_note(tmp_path, monkeypatch):
     """The title-case consensus note must NOT appear when there is no losing
     position (i.e. is_overridden is False).  Proves the note is tied
