@@ -63,6 +63,18 @@ def test_dashboard_exposes_semantic_structure(tmp_path, monkeypatch):
     assert 'aria-hidden="true" focusable="false"' in blob    # GSR svg hidden
 
 
+def test_dashboard_shows_morning_briefing(tmp_path, monkeypatch):
+    at = _run(tmp_path, monkeypatch)
+    assert not at.exception
+    assert len(at.expander) >= 1
+    assert at.expander[0].label.startswith("Morning Briefing — ")
+    blob = " ".join(m.value for m in at.expander[0].markdown)
+    assert "Top call" in blob
+    assert "Overnight" in blob
+    assert "Sentiment" in blob
+    assert "Fresh positive read" in blob   # the seeded analytical summary
+
+
 def _seed_stale(db_file) -> None:
     """Seed prices + a sentiment snapshot whose fetched_at is older than the
     default sentiment_max_age_days (2). Forces the gate to STALE -> HOLD, which
@@ -83,9 +95,12 @@ def test_stale_verdict_html_stays_one_block(tmp_path, monkeypatch):
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not at.exception
 
-    # Discriminate on the reason text: the CSS <style> block also mentions
-    # `audash-verdict-reason` (and carries blank lines between rule groups).
-    verdict = next(m.value for m in at.markdown if "Sentiment is stale" in m.value)
+    # Discriminate on the reason text *and* the verdict-panel class: the
+    # morning-briefing panel's "Top call" line also quotes verdict_reason()
+    # verbatim, so the phrase alone now matches two markdown blocks.
+    verdict = next(m.value for m in at.markdown
+                   if "Sentiment is stale" in m.value
+                   and 'class="audash-verdict-reason"' in m.value)
     assert 'class="audash-verdict-reason"' in verdict
     interior = verdict.splitlines()[1:-1]  # edges are stripped by clean_text
     assert all(line.strip() for line in interior), \

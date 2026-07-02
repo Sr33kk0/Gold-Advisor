@@ -38,6 +38,21 @@ def _eyebrow(model: dict) -> str:
     return f"{local:%d %b %Y · %H:%M} · {freshness}"
 
 
+def _briefing_html(lines: list[dict]) -> str:
+    """The morning-note lines as a quiet <dl>: eyebrow label left, prose right."""
+    t = THEME
+    rows = ""
+    for ln in lines:
+        rows += (
+            f'<div style="display:grid;grid-template-columns:96px 1fr;gap:14px;'
+            f'padding:9px 0;border-bottom:1px solid {t["line"]};">'
+            f'<dt class="audash-eyebrow" style="align-self:baseline;">{ln["label"]}</dt>'
+            f'<dd style="margin:0;font-family:{t["f_body"]};font-size:14px;'
+            f'line-height:1.55;color:{ln["color"]};">{ln["text"]}</dd></div>'
+        )
+    return f'<dl style="margin:0;" aria-label="Morning briefing">{rows}</dl>'
+
+
 def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) -> str:
     """Condensed header: the verdict (shape + serif word) and the consensus +
     sentiment gate side by side, kept tight so the live rates sit high on the
@@ -198,6 +213,11 @@ def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
 # --- screens -----------------------------------------------------------------
 
 def render_dashboard(model: dict) -> None:
+    local = to_local(model["now"], model["settings"]["TIMEZONE"])
+    briefing = presenter.build_morning_briefing(model, THEME)
+    with st.expander(f"Morning Briefing — {local:%a %d %b %Y}", expanded=True):
+        st.markdown(_briefing_html(briefing), unsafe_allow_html=True)
+
     sig = model["signal_result"]
     view = presenter.verdict_view(sig, model["threshold"], THEME)
     reason = presenter.verdict_reason(sig)
