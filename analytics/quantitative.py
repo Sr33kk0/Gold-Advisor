@@ -53,3 +53,69 @@ def compute_volatility_bands(price: pd.Series, window: int = 20,
         "lower": lower,
         "percent_b": percent_b,
     })
+
+
+# The five functions below port formulas from Microsoft Qlib's Alpha158 zoo
+# (github.com/microsoft/qlib, Apache-2.0), as adapted to pure-pandas single-
+# instrument scripts by github.com/HKUDS/Vibe-Trading
+# (agent/src/factors/zoo/qlib158/). Qlib's originals run cross-sectionally
+# over a wide DataFrame of many instruments; these operate on the one price
+# Series a metal's spot history is (Rule 2: no I/O, no global state).
+
+
+def compute_momentum_roc(price: pd.Series, window: int = 10) -> pd.Series:
+    """Rate of change: price_t / price_{t-window} - 1 (qlib158 ROC).
+
+    Positive -> up over the window, negative -> down. The leading `window`
+    observations are NaN (no prior price to compare against). A zero prior
+    price (never expected for spot gold/silver) yields NaN, not inf.
+    """
+    prior = price.shift(window)
+    return (price / prior.where(prior != 0)) - 1.0
+
+
+def compute_price_deviation(price: pd.Series, window: int = 20) -> pd.Series:
+    """Price deviation from its own rolling mean, normalized (qlib158 RESI).
+
+    (price - ts_mean(price, window)) / price. Positive -> trading above its
+    recent average, negative -> below; magnitude is a mean-reversion signal.
+    A zero price yields NaN, not inf.
+    """
+    mean = price.rolling(window).mean()
+    return (price - mean) / price.where(price != 0)
+
+
+def compute_trend_strength(price: pd.Series, window: int = 20) -> pd.Series:
+    """R^2 of price against a linear time trend over the window (qlib158 RSQR).
+
+    Squared rolling Pearson correlation between price and an increasing time
+    index, bounded [0, 1]. Near 1 -> price is moving in a clean, near-linear
+    trend (momentum signals are trustworthy); near 0 -> choppy/range-bound
+    (momentum signals are noisier). A constant-price window has undefined
+    correlation and yields NaN, not a false 0.
+    """
+    t = pd.Series(range(len(price)), index=price.index, dtype="float64")
+    corr = price.rolling(window).corr(t)
+    return corr * corr
+
+
+def compute_coefficient_of_variation(price: pd.Series, window: int = 20) -> pd.Series:
+    """Rolling price volatility relative to price level (qlib158 STD).
+
+    ts_std(price, window) / price, population std (ddof=0, matching
+    `compute_volatility_bands`). Unit-free, so it is comparable across metals
+    or across time even as the price level drifts. A zero price yields NaN.
+    """
+    std = price.rolling(window).std(ddof=0)
+    return std / price.where(price != 0)
+
+
+def compute_up_day_ratio(price: pd.Series, window: int = 10) -> pd.Series:
+    """Fraction of up days within the window (qlib158 CNTP).
+
+    rolling_mean(1[price > price_{t-1}], window), bounded [0, 1]. High ->
+    persistent upward days (trend consistency); low -> persistent downward
+    days. 0.5 -> no directional bias.
+    """
+    up = (price > price.shift(1)).astype("float64")
+    return up.rolling(window).mean()
