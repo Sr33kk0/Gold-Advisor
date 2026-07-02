@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)",
+      "Bash(gh repo *)",
+      "Bash(git remote *)"
+    ]
+  }
+}

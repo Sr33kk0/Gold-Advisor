@@ -31,8 +31,8 @@ from utils.timeutil import now_utc
 
 def _heading(eyebrow: str, title: str, blurb: str) -> None:
     st.markdown(
-        f'<div class="audash-page-title">'
-        f'<div class="audash-eyebrow">{eyebrow}</div>'
+        f'<div class="goldadvisor-page-title">'
+        f'<div class="goldadvisor-eyebrow">{eyebrow}</div>'
         f'<div role="heading" aria-level="1" style="font-family:{THEME["f_display"]};'
         f'font-weight:600;font-size:34px;color:{THEME["text"]};margin:2px 0 4px;">{title}</div>'
         f'</div>'
@@ -238,7 +238,7 @@ def _render_backdated_rates(metal: str, action: str, trade_date,
     side = "buy" if action == "BUY" else "sell"
 
     st.markdown(
-        f'<div class="audash-eyebrow" style="margin-top:6px;">Editing historical '
+        f'<div class="goldadvisor-eyebrow" style="margin-top:6px;">Editing historical '
         f'platform {action.lower()} rate · {trade_date.isoformat()}</div>',
         unsafe_allow_html=True)
 
@@ -255,7 +255,7 @@ def _render_backdated_rates(metal: str, action: str, trade_date,
     other = "sell" if action == "BUY" else "buy"
     other_src = "recorded quote" if existing is not None else "median spread"
     st.markdown(
-        f'<div class="audash-eyebrow">Used for this {action} · '
+        f'<div class="goldadvisor-eyebrow">Used for this {action} · '
         f'<span style="color:{THEME["accent"]};">{presenter.fmt(rate)} MYR/g</span>'
         f' · {other} side {presenter.fmt(quote[other])} from {other_src}'
         f' · both recorded as the {trade_date.isoformat()} {metal} quote'
@@ -294,11 +294,11 @@ def _render_trade_entry(model: dict) -> None:
         rate = live_buy if action == "BUY" else live_sell
         quote = None
         st.markdown(
-            f'<div class="audash-eyebrow" style="margin-top:6px;">'
+            f'<div class="goldadvisor-eyebrow" style="margin-top:6px;">'
             f'Platform {action.lower()} rate</div>'
-            f'<div class="audash-num" style="font-family:{THEME["f_data"]};'
+            f'<div class="goldadvisor-num" style="font-family:{THEME["f_data"]};'
             f'font-size:18px;color:{THEME["text"]};margin-bottom:10px;">'
-            f'{presenter.fmt(rate)} <span class="audash-cell-unit">MYR/g</span></div>',
+            f'{presenter.fmt(rate)} <span class="goldadvisor-cell-unit">MYR/g</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -316,8 +316,8 @@ def _render_trade_entry(model: dict) -> None:
     else:
         derived = f"RM {presenter.fmt(amounts['fiat_total_myr'])}"
     st.markdown(
-        f'<div class="audash-eyebrow">Derived <span style="color:{THEME["accent"]};">'
-        f'live</span></div><div class="audash-num" style="font-family:'
+        f'<div class="goldadvisor-eyebrow">Derived <span style="color:{THEME["accent"]};">'
+        f'live</span></div><div class="goldadvisor-num" style="font-family:'
         f'{THEME["f_data"]};font-size:18px;font-weight:600;color:{THEME["accent"]};'
         f'margin-bottom:18px;">{derived}</div>',
         unsafe_allow_html=True,
@@ -338,10 +338,10 @@ def _render_trade_confirm(pending: dict) -> None:
         pending["action"], pending["metal"], pending["mass_grams"],
         pending["fiat_total_myr"], pending["rate"])
     st.markdown(
-        f'<div class="audash-panel" style="margin-bottom:16px;">'
-        f'<div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:10px;">'
+        f'<div class="goldadvisor-panel" style="margin-bottom:16px;">'
+        f'<div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:10px;">'
         f'Confirm entry · review before it joins the ledger</div>'
-        f'<div class="audash-num" style="font-family:{THEME["f_data"]};'
+        f'<div class="goldadvisor-num" style="font-family:{THEME["f_data"]};'
         f'font-size:18px;font-weight:600;color:{THEME["accent"]};">{line}</div>'
         f'<p style="font-family:{THEME["f_body"]};font-size:13px;color:{THEME["muted"]};'
         f'margin:12px 0 0;">Append-only: once logged, this can be reversed but '
@@ -364,7 +364,7 @@ def _render_trade_confirm(pending: dict) -> None:
 def _render_recent_trades() -> None:
     """The append-only ledger tail, each row reversible via an offsetting void."""
     st.markdown(
-        '<div class="audash-eyebrow" role="heading" aria-level="2" style="margin:26px 0 12px;">'
+        '<div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin:26px 0 12px;">'
         'Recent trades · ledger</div>', unsafe_allow_html=True)
     try:
         with get_db_connection() as conn:
@@ -409,21 +409,21 @@ def _trade_row_dl(row: dict, voided: bool = False) -> str:
         f'border-radius:3px;padding:1px 5px;margin-left:8px;">VOIDED</span>'
         if voided else "")
     return (
-        '<dl class="audash-trade" style="display:flex;align-items:center;gap:14px;">'
+        '<dl class="goldadvisor-trade" style="display:flex;align-items:center;gap:14px;">'
         '<div style="flex:3 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Trade</dt>'
+        '<dt class="goldadvisor-sr-only">Trade</dt>'
         f'<dd><span style="font-family:{t["f_ui"]};font-size:14px;font-weight:600;'
         f'color:{label_color};{strike}">{row["action"]} · {row["metal"]}</span>{tag}'
         f'<span style="display:block;font-family:{t["f_data"]};font-size:11px;'
         f'color:{t["muted"]};">{row["date"]}</span></dd></div>'
         '<div style="flex:1.6 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Mass (grams)</dt>'
-        f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
+        '<dt class="goldadvisor-sr-only">Mass (grams)</dt>'
+        f'<dd class="goldadvisor-num" style="font-family:{t["f_data"]};font-size:14px;'
         f'color:{text_color};{strike}">{row["mass"]} '
         f'<span style="color:{t["muted"]};font-size:11px;">g</span></dd></div>'
         '<div style="flex:2 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Value</dt>'
-        f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
+        '<dt class="goldadvisor-sr-only">Value</dt>'
+        f'<dd class="goldadvisor-num" style="font-family:{t["f_data"]};font-size:14px;'
         f'color:{text_color};{strike}">RM {row["fiat"]}'
         f'<span style="display:block;font-size:11px;color:{t["muted"]};">'
         f'@ {row["rate"]}</span></dd></div>'
@@ -514,9 +514,9 @@ def _render_quote_preview(model: dict, metal: str,
     prev = presenter.quote_preview(buy_rate, sell_rate, spot)
 
     st.markdown(
-        f'<div class="audash-eyebrow" style="margin-top:6px;">Current default '
+        f'<div class="goldadvisor-eyebrow" style="margin-top:6px;">Current default '
         f'spread · {metal.lower()} · median of {info["n_quotes"]} quote(s)</div>'
-        f'<div class="audash-num" style="font-family:{THEME["f_data"]};'
+        f'<div class="goldadvisor-num" style="font-family:{THEME["f_data"]};'
         f'font-size:15px;color:{THEME["sub"]};margin-bottom:10px;">buy +'
         f'{presenter.fmt(info["buy_spread"])} / sell −'
         f'{presenter.fmt(info["sell_spread"])} MYR/g</div>',
@@ -527,9 +527,9 @@ def _render_quote_preview(model: dict, metal: str,
                    "be recorded exactly as entered.")
     if spot > 0 and (buy_rate > 0 or sell_rate > 0):
         st.markdown(
-            f'<div class="audash-eyebrow">Implied spread · vs latest spot '
+            f'<div class="goldadvisor-eyebrow">Implied spread · vs latest spot '
             f'{presenter.fmt(spot)}</div>'
-            f'<div class="audash-num" style="font-family:{THEME["f_data"]};'
+            f'<div class="goldadvisor-num" style="font-family:{THEME["f_data"]};'
             f'font-size:15px;color:{THEME["accent"]};margin-bottom:12px;">buy '
             f'{presenter.signed(prev["buy_spread"])} / sell '
             f'{presenter.signed(prev["sell_spread"])} MYR/g</div>',
@@ -540,21 +540,21 @@ def _quote_row_dl(row: dict) -> str:
     t = THEME
     color = t["gold"] if row["metal"] == "GOLD" else t["silver"]
     return (
-        '<dl class="audash-trade" style="display:flex;align-items:center;gap:14px;">'
+        '<dl class="goldadvisor-trade" style="display:flex;align-items:center;gap:14px;">'
         '<div style="flex:3 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Quote</dt>'
+        '<dt class="goldadvisor-sr-only">Quote</dt>'
         f'<dd><span style="font-family:{t["f_ui"]};font-size:14px;font-weight:600;'
         f'color:{color};">{row["metal"]}</span>'
         f'<span style="display:block;font-family:{t["f_data"]};font-size:11px;'
         f'color:{t["muted"]};">{row["date"]}</span></dd></div>'
         '<div style="flex:2 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Buy rate</dt>'
-        f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
+        '<dt class="goldadvisor-sr-only">Buy rate</dt>'
+        f'<dd class="goldadvisor-num" style="font-family:{t["f_data"]};font-size:14px;'
         f'color:{t["text"]};">{row["buy"]} '
         f'<span style="color:{t["muted"]};font-size:11px;">buy</span></dd></div>'
         '<div style="flex:2 1 0;min-width:0;">'
-        '<dt class="audash-sr-only">Sell rate</dt>'
-        f'<dd class="audash-num" style="font-family:{t["f_data"]};font-size:14px;'
+        '<dt class="goldadvisor-sr-only">Sell rate</dt>'
+        f'<dd class="goldadvisor-num" style="font-family:{t["f_data"]};font-size:14px;'
         f'color:{t["text"]};">{row["sell"]} '
         f'<span style="color:{t["muted"]};font-size:11px;">sell</span></dd></div>'
         '</dl>'
@@ -563,7 +563,7 @@ def _quote_row_dl(row: dict) -> str:
 
 def _render_recent_quotes() -> None:
     st.markdown(
-        '<div class="audash-eyebrow" role="heading" aria-level="2" '
+        '<div class="goldadvisor-eyebrow" role="heading" aria-level="2" '
         'style="margin:26px 0 12px;">Recent quotes</div>', unsafe_allow_html=True)
     try:
         with get_db_connection() as conn:
@@ -607,7 +607,7 @@ def render_settings_panel(model: dict) -> None:
     edited: dict[str, str] = {}
     for group in presenter.settings_groups(settings):
         st.markdown(
-            f'<div class="audash-eyebrow" role="heading" aria-level="2" '
+            f'<div class="goldadvisor-eyebrow" role="heading" aria-level="2" '
             f'style="color:{THEME["accent"]};margin:14px 0 6px;">{group["title"]}</div>',
             unsafe_allow_html=True,
         )
@@ -645,7 +645,7 @@ def _render_price_import() -> None:
     reads collected from install day forward.
     """
     st.markdown(
-        f'<div class="audash-eyebrow" role="heading" aria-level="2" '
+        f'<div class="goldadvisor-eyebrow" role="heading" aria-level="2" '
         f'style="color:{THEME["accent"]};margin:14px 0 6px;">'
         f'Historical price import</div>',
         unsafe_allow_html=True,

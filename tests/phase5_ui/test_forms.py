@@ -29,7 +29,7 @@ def _seed(db_file) -> None:
 
 
 def _run(tmp_path, monkeypatch) -> AppTest:
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     return AppTest.from_file(APP, default_timeout=60).run()
@@ -47,7 +47,7 @@ def test_submitting_trade_form_writes_a_ledger_row(tmp_path, monkeypatch):
     _widget(at.button, "trade_submit").click().run()       # step 2: confirm
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         df = fetch_transactions(conn)
     assert len(df) == 1
     assert df.iloc[0]["action_type"] == "BUY"
@@ -62,13 +62,13 @@ def test_non_positive_amount_is_blocked_and_logs_nothing(tmp_path, monkeypatch):
 
     assert not at.exception
     assert any("greater than zero" in e.value for e in at.error)
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert len(fetch_transactions(conn)) == 0
 
 
 def test_voiding_a_trade_writes_an_offsetting_reversal(tmp_path, monkeypatch):
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -79,7 +79,7 @@ def test_voiding_a_trade_writes_an_offsetting_reversal(tmp_path, monkeypatch):
     _widget(at.button, f"voidok_{tx_id}").click().run()    # confirm the void
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         df = fetch_transactions(conn)
     assert len(df) == 2
     sells = df[df["action_type"] == "SELL"]
@@ -93,8 +93,8 @@ def test_voiding_a_trade_writes_an_offsetting_reversal(tmp_path, monkeypatch):
 def test_recent_trades_render_as_description_list(tmp_path, monkeypatch):
     """Each ledger row is a semantic <dl> with screen-reader-only datum labels,
     while the per-row Void button stays a live widget."""
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -103,16 +103,16 @@ def test_recent_trades_render_as_description_list(tmp_path, monkeypatch):
 
     assert not at.exception
     blob = " ".join(m.value for m in at.markdown)
-    assert 'class="audash-trade"' in blob
-    assert 'class="audash-sr-only">Mass' in blob
+    assert 'class="goldadvisor-trade"' in blob
+    assert 'class="goldadvisor-sr-only">Mass' in blob
     assert any(w.key == f"void_{tx_id}" for w in at.button)  # still interactive
 
 
 def test_void_controls_use_static_labels_with_trade_in_help(tmp_path, monkeypatch):
     """Buttons carry crisp static labels (never a truncating dynamic string);
     the exact trade lives in the help tooltip and the adjacent row."""
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -136,7 +136,7 @@ def test_saving_settings_persists_change(tmp_path, monkeypatch):
     _widget(at.button, "save_settings").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert get_setting(conn, "rsi_oversold") == "35"
 
 
@@ -161,7 +161,7 @@ def test_importing_historical_prices_writes_spot_price_rows(tmp_path, monkeypatc
     _widget(at.button, "confirm_price_import").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         row = conn.execute(
             "SELECT gold_rate_per_oz, silver_rate_per_oz FROM spot_prices "
             "WHERE date='2025-01-01';").fetchone()
@@ -192,7 +192,7 @@ def test_recording_a_quote_writes_a_daily_quote_row(tmp_path, monkeypatch):
     _widget(at.button, "quote_submit").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         df = fetch_daily_quotes(conn)
     assert len(df) == 1
     assert df.iloc[0]["metal"] == "GOLD"
@@ -209,7 +209,7 @@ def test_recording_quote_with_zero_rate_is_blocked(tmp_path, monkeypatch):
 
     assert not at.exception
     assert any("greater than zero" in e.value for e in at.error)
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert len(fetch_daily_quotes(conn)) == 0
 
 
@@ -222,13 +222,13 @@ def test_inverted_quote_warns_but_still_records(tmp_path, monkeypatch):
     assert any("swap" in w.value.lower() for w in at.warning)
     _widget(at.button, "quote_submit").click().run()
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert len(fetch_daily_quotes(conn)) == 1
 
 
 def test_deleting_a_quote_removes_it(tmp_path, monkeypatch):
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         write_daily_quote(conn, "2026-06-20", "GOLD", 500.0, 490.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -238,15 +238,15 @@ def test_deleting_a_quote_removes_it(tmp_path, monkeypatch):
     _widget(at.button, "delq_2026-06-20_GOLD").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert len(fetch_daily_quotes(conn)) == 0
 
 
 def test_backdated_trade_logs_one_side_and_estimates_the_other(tmp_path, monkeypatch):
     # Only the BUY side is entered; the un-quoted SELL side is recorded as the
     # entered rate minus the median bid-ask width (default spreads 12 + 8 = 20).
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         set_setting(conn, "default_buy_spread", "12.0")
         set_setting(conn, "default_sell_spread", "8.0")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
@@ -263,7 +263,7 @@ def test_backdated_trade_logs_one_side_and_estimates_the_other(tmp_path, monkeyp
     _widget(at.button, "trade_submit").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx = fetch_transactions(conn)
         q = fetch_daily_quotes(conn)
     assert len(tx) == 1
@@ -278,9 +278,9 @@ def test_backdated_trade_logs_one_side_and_estimates_the_other(tmp_path, monkeyp
 def test_backdated_trade_preserves_recorded_other_side(tmp_path, monkeypatch):
     # A real quote already exists for the date. Logging a SELL overwrites only
     # the sell side; the recorded buy side is preserved (not re-estimated).
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     past = now_utc().date() - timedelta(days=5)
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         write_daily_quote(conn, past.isoformat(), "GOLD", 433.0, 428.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -296,7 +296,7 @@ def test_backdated_trade_preserves_recorded_other_side(tmp_path, monkeypatch):
     _widget(at.button, "trade_submit").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx = fetch_transactions(conn)
         q = fetch_daily_quotes(conn)
     assert tx.iloc[0]["execution_rate_myr"] == 430.0          # SELL -> entered
@@ -306,9 +306,9 @@ def test_backdated_trade_preserves_recorded_other_side(tmp_path, monkeypatch):
 
 
 def test_backdated_rate_prefills_the_action_side_from_recorded_quote(tmp_path, monkeypatch):
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     past = now_utc().date() - timedelta(days=5)
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         write_daily_quote(conn, past.isoformat(), "GOLD", 433.0, 428.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -335,7 +335,7 @@ def test_today_trade_writes_no_quote(tmp_path, monkeypatch):
     _widget(at.button, "trade_submit").click().run()
 
     assert not at.exception
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         assert len(fetch_transactions(conn)) == 1
         assert len(fetch_daily_quotes(conn)) == 0
 
@@ -343,9 +343,9 @@ def test_today_trade_writes_no_quote(tmp_path, monkeypatch):
 def test_backdated_entered_side_crossing_preserved_other_warns(tmp_path, monkeypatch):
     # Entered SELL (440) lands above the preserved BUY side (433), inverting the
     # recorded pair — the swap warning still fires on the derived quote.
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     past = now_utc().date() - timedelta(days=5)
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         write_daily_quote(conn, past.isoformat(), "GOLD", 433.0, 428.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -362,8 +362,8 @@ def test_backdated_entered_side_crossing_preserved_other_warns(tmp_path, monkeyp
 
 
 def test_voiding_collapses_to_a_single_voided_line(tmp_path, monkeypatch):
-    _seed(tmp_path / "audash.db")
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    _seed(tmp_path / "goldadvisor.db")
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -375,7 +375,7 @@ def test_voiding_collapses_to_a_single_voided_line(tmp_path, monkeypatch):
 
     assert not at.exception
     # the offsetting reversal is persisted AND linked back to the original
-    with get_db_connection(str(tmp_path / "audash.db")) as conn:
+    with get_db_connection(str(tmp_path / "goldadvisor.db")) as conn:
         df = fetch_transactions(conn)
     assert (df["reverses_id"] == tx_id).sum() == 1
     # the original now renders as VOIDED with no void button; reversal not listed

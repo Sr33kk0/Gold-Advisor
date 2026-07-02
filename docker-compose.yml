@@ -12,7 +12,7 @@ services:
     environment:
       DATA_DIR: /data
     volumes:
-      - audash-data:/data
+      - goldadvisor-data:/data
     restart: unless-stopped
 
   web:
@@ -27,8 +27,8 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - audash-data:/data
+      - goldadvisor-data:/data
     restart: unless-stopped
 
 volumes:
-  audash-data:
+  goldadvisor-data:

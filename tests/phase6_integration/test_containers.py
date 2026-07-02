@@ -30,7 +30,7 @@ def test_compose_shares_one_data_volume():
     text = (ROOT / "docker-compose.yml").read_text()
     assert "Dockerfile.web" in text and "Dockerfile.worker" in text
     # Both services mount the same named volume where DATA_DIR points.
-    assert text.count("audash-data:/data") == 2
+    assert text.count("goldadvisor-data:/data") == 2
     assert text.count("DATA_DIR: /data") == 2
     assert "8501:8501" in text
     assert text.count("restart: unless-stopped") == 2

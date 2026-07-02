@@ -42,7 +42,7 @@ def _resolve_db_path(db_path: str | None) -> str:
     if db_path is not None:
         return db_path
     data_dir = os.environ.get("DATA_DIR", "data")
-    return os.path.join(data_dir, "audash.db")
+    return os.path.join(data_dir, "goldadvisor.db")
 
 
 @contextmanager

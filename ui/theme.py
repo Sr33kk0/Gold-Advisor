@@ -2,7 +2,7 @@
 
 Pure configuration (no Streamlit/Plotly import) so presenter helpers can take
 the palette as a plain dict and stay unit-testable. Hex tokens are ported
-verbatim from the approved Claude Design file (AuDash.dc.html, theme "A").
+verbatim from the approved Claude Design file (GoldAdvisor.dc.html, theme "A").
 """
 
 # Bi-metallic instrument-panel palette. Keys are snake_case mirrors of the
@@ -47,20 +47,20 @@ IDENTITY_CSS = f"""
 .stApp {{ background: {THEME['bg']}; color: {THEME['text']}; font-family: {THEME['f_ui']}; }}
 .block-container {{ max-width: 1240px; padding-top: 1.4rem; }}
 
-.audash-num {{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }}
+.goldadvisor-num {{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }}
 
 :focus-visible {{ outline: 2px solid var(--focus); outline-offset: 2px; }}
 
 /* Panels --------------------------------------------------------------- */
-.audash-panel {{
+.goldadvisor-panel {{
     background: {THEME['panel']};
     border: 1px solid {THEME['line']};
     border-radius: 6px;
     padding: 24px;
 }}
 /* Condensed header panels — tighter so the live rates sit higher on the page. */
-.audash-panel-verdict {{ padding: 18px 22px; }}
-.audash-eyebrow {{
+.goldadvisor-panel-verdict {{ padding: 18px 22px; }}
+.goldadvisor-eyebrow {{
     font-family: {THEME['f_data']};
     font-size: 12px;
     letter-spacing: 0.09em;
@@ -69,7 +69,7 @@ IDENTITY_CSS = f"""
 }}
 
 /* Verdict hero --------------------------------------------------------- */
-.audash-verdict-word {{
+.goldadvisor-verdict-word {{
     font-family: {THEME['f_display']};
     font-weight: 700;
     font-size: 60px;
@@ -77,19 +77,19 @@ IDENTITY_CSS = f"""
     letter-spacing: 0.01em;
 }}
 /* The verdict glyph (▲ ▼ ○) — shape-encodes the call beside the word/color. */
-.audash-verdict-shape {{
+.goldadvisor-verdict-shape {{
     font-family: {THEME['f_data']};
     font-size: 28px;
     line-height: 0.9;
 }}
-.audash-verdict-metal {{
+.goldadvisor-verdict-metal {{
     font-family: {THEME['f_display']};
     font-size: 24px;
     font-weight: 500;
     letter-spacing: 0.04em;
     color: {THEME['sub']};
 }}
-.audash-verdict-reason {{
+.goldadvisor-verdict-reason {{
     font-family: {THEME['f_body']};
     font-size: 16px;
     line-height: 1.55;
@@ -97,7 +97,7 @@ IDENTITY_CSS = f"""
     max-width: 46ch;
     text-wrap: pretty;
 }}
-.audash-stale {{
+.goldadvisor-stale {{
     font-family: {THEME['f_data']};
     font-size: 10px;
     font-weight: 600;
@@ -113,51 +113,51 @@ IDENTITY_CSS = f"""
    bottom, a vertical rule splitting the Market from the Portfolio, a horizontal
    rule above the secondary Engine strip. Every value is tabular so the digits
    stack like a mechanical scale. */
-.audash-bench {{
+.goldadvisor-bench {{
     border-top: 1px solid {THEME['line']};
     border-bottom: 1px solid {THEME['line']};
     padding: 18px 0 16px;
     margin-bottom: 22px;
 }}
-.audash-bench-row {{
+.goldadvisor-bench-row {{
     display: grid;
     grid-template-columns: 1.55fr 1px 1fr;
     column-gap: 26px;
     align-items: stretch;
 }}
-.audash-vrule, .audash-hrule {{ background: {THEME['line']}; }}
-.audash-hrule {{ height: 1px; margin: 16px 0; }}
-.audash-zone-portfolio {{ display: flex; flex-direction: column; }}
+.goldadvisor-vrule, .goldadvisor-hrule {{ background: {THEME['line']}; }}
+.goldadvisor-hrule {{ height: 1px; margin: 16px 0; }}
+.goldadvisor-zone-portfolio {{ display: flex; flex-direction: column; }}
 
 /* Label -> value readout rows (Market grid + Portfolio secondary stack). */
-.audash-readout {{ display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }}
-.audash-readout-stack {{ display: flex; flex-direction: column; }}
-.audash-read {{
+.goldadvisor-readout {{ display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }}
+.goldadvisor-readout-stack {{ display: flex; flex-direction: column; }}
+.goldadvisor-read {{
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
     padding: 7px 0;
 }}
-.audash-read-label {{
+.goldadvisor-read-label {{
     font-family: {THEME['f_ui']};
     font-size: 12.5px;
     font-weight: 500;
     letter-spacing: 0.02em;
     color: {THEME['sub']};
 }}
-.audash-read-val {{
+.goldadvisor-read-val {{
     font-family: {THEME['f_data']};
     font-weight: 600;
     line-height: 1;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }}
-.audash-read-unit {{ font-family: {THEME['f_data']}; font-size: 11px; color: {THEME['muted']}; margin-left: 5px; }}
+.goldadvisor-read-unit {{ font-family: {THEME['f_data']}; font-size: 11px; color: {THEME['muted']}; margin-left: 5px; }}
 
 /* Portfolio PnL — the emphasized readout: large, sign-shaped, sign-colored. */
-.audash-pnl {{ margin-top: auto; padding-top: 14px; }}
-.audash-pnl-label {{
+.goldadvisor-pnl {{ margin-top: auto; padding-top: 14px; }}
+.goldadvisor-pnl-label {{
     font-family: {THEME['f_ui']};
     font-size: 11px;
     font-weight: 600;
@@ -165,21 +165,21 @@ IDENTITY_CSS = f"""
     text-transform: uppercase;
     color: {THEME['sub']};
 }}
-.audash-pnl-row {{ display: flex; align-items: baseline; gap: 10px; margin-top: 7px; }}
-.audash-pnl-shape {{ font-family: {THEME['f_data']}; font-size: 22px; line-height: 1; }}
-.audash-pnl-val {{
+.goldadvisor-pnl-row {{ display: flex; align-items: baseline; gap: 10px; margin-top: 7px; }}
+.goldadvisor-pnl-shape {{ font-family: {THEME['f_data']}; font-size: 22px; line-height: 1; }}
+.goldadvisor-pnl-val {{
     font-family: {THEME['f_data']};
     font-weight: 600;
     font-size: 30px;
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }}
-.audash-pnl-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
+.goldadvisor-pnl-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
 
 /* Engine strip — secondary raw readings, tight and small. */
-.audash-engine {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }}
-.audash-eng {{ display: flex; flex-direction: column; gap: 6px; }}
-.audash-eng-label {{
+.goldadvisor-engine {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }}
+.goldadvisor-eng {{ display: flex; flex-direction: column; gap: 6px; }}
+.goldadvisor-eng-label {{
     font-family: {THEME['f_ui']};
     font-size: 10.5px;
     font-weight: 600;
@@ -187,20 +187,20 @@ IDENTITY_CSS = f"""
     text-transform: uppercase;
     color: {THEME['muted']};
 }}
-.audash-eng-val {{
+.goldadvisor-eng-val {{
     font-family: {THEME['f_data']};
     font-weight: 600;
     font-size: 15px;
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }}
-.audash-eng-unit {{ font-family: {THEME['f_data']}; font-size: 10px; color: {THEME['muted']}; margin-left: 4px; }}
+.goldadvisor-eng-unit {{ font-family: {THEME['f_data']}; font-size: 10px; color: {THEME['muted']}; margin-left: 4px; }}
 
 /* Kept for forms.py quote/confirm rows. */
-.audash-cell-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
+.goldadvisor-cell-unit {{ font-family: {THEME['f_data']}; font-size: 12px; color: {THEME['sub']}; }}
 
 /* Ledger / breakdown --------------------------------------------------- */
-.audash-vote {{
+.goldadvisor-vote {{
     font-family: {THEME['f_data']};
     font-weight: 600;
     font-size: 14px;
@@ -210,7 +210,7 @@ IDENTITY_CSS = f"""
 
 /* Accessible structure ------------------------------------------------- */
 /* Screen-reader-only: present to AT, removed from the visual layout. */
-.audash-sr-only {{
+.goldadvisor-sr-only {{
     position: absolute;
     width: 1px;
     height: 1px;
@@ -223,9 +223,9 @@ IDENTITY_CSS = f"""
 }}
 /* Native <dl> readouts + trade rows: strip the UA margins/indent Streamlit
    may re-assert at runtime, so the description lists lay out as designed. */
-.audash-readout, .audash-readout dt, .audash-readout dd,
-.audash-engine, .audash-engine dt, .audash-engine dd,
-.audash-trade, .audash-trade dt, .audash-trade dd {{ margin: 0 !important; }}
+.goldadvisor-readout, .goldadvisor-readout dt, .goldadvisor-readout dd,
+.goldadvisor-engine, .goldadvisor-engine dt, .goldadvisor-engine dd,
+.goldadvisor-trade, .goldadvisor-trade dt, .goldadvisor-trade dd {{ margin: 0 !important; }}
 
 /* Motion — "a reading is taken, then it settles" ---------------------- */
 /* Three entrance gestures, each deliberately distinct so the page never fades
@@ -237,12 +237,12 @@ IDENTITY_CSS = f"""
 /* Resting pose (also the reduced-motion pose): the signature balance is drawn
    level, then settled into its GSR tilt. The transform carries the final pose,
    so a motionless render is identical to the animated end state. */
-.audash-beam {{
+.goldadvisor-beam {{
     transform-box: view-box;
     transform-origin: 150px 60px;
     transform: rotate(var(--tilt, 0deg));
 }}
-.audash-pan {{
+.goldadvisor-pan {{
     transform-box: view-box;
     transform: translate(var(--dx, 0), var(--dy, 0));
 }}
@@ -268,42 +268,42 @@ IDENTITY_CSS = f"""
 .stRadio label {{ transition: color 140ms cubic-bezier(0.22, 1, 0.36, 1); }}
 
 @media (prefers-reduced-motion: no-preference) {{
-    .audash-verdict-word,
-    .audash-verdict-metal {{
-        animation: audash-resolve 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    .goldadvisor-verdict-word,
+    .goldadvisor-verdict-metal {{
+        animation: goldadvisor-resolve 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }}
-    .audash-verdict-reason {{
-        animation: audash-resolve 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    .goldadvisor-verdict-reason {{
+        animation: goldadvisor-resolve 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
         animation-delay: 90ms;
     }}
-    .audash-read {{
-        animation: audash-online 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    .goldadvisor-read {{
+        animation: goldadvisor-online 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
         animation-delay: calc(var(--i, 0) * 30ms);
     }}
-    .audash-beam {{ animation: audash-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
-    .audash-pan {{ animation: audash-pan-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
-    .audash-hold-panel {{ animation: audash-hold-breath 3.6s ease-in-out infinite; }}
+    .goldadvisor-beam {{ animation: goldadvisor-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
+    .goldadvisor-pan {{ animation: goldadvisor-pan-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both; }}
+    .goldadvisor-hold-panel {{ animation: goldadvisor-hold-breath 3.6s ease-in-out infinite; }}
 }}
 
-@keyframes audash-resolve {{
+@keyframes goldadvisor-resolve {{
     from {{ opacity: 0; transform: translateY(7px); }}
     to   {{ opacity: 1; transform: translateY(0); }}
 }}
-@keyframes audash-online {{
+@keyframes goldadvisor-online {{
     from {{ opacity: 0; transform: translateY(3px); }}
     to   {{ opacity: 1; transform: translateY(0); }}
 }}
-@keyframes audash-settle {{
+@keyframes goldadvisor-settle {{
     from {{ transform: rotate(0deg); }}
     to   {{ transform: rotate(var(--tilt, 0deg)); }}
 }}
-@keyframes audash-pan-settle {{
+@keyframes goldadvisor-pan-settle {{
     from {{ transform: translate(0, 0); }}
     to   {{ transform: translate(var(--dx, 0), var(--dy, 0)); }}
 }}
 /* A slow, low-amplitude breath on the silver border — the instrument is
    holding, not alarming. Calm by design (Design Principle 2 + 4). */
-@keyframes audash-hold-breath {{
+@keyframes goldadvisor-hold-breath {{
     0%, 100% {{ border-color: {THEME['hold']}33; }}
     50%      {{ border-color: {THEME['hold']}66; }}
 }}
@@ -324,13 +324,13 @@ IDENTITY_CSS = f"""
    degrade gracefully if the window is narrowed — 4→2 columns, side-by-side→
    stacked — instead of overflowing. Owned here as classes, not inline styles,
    so the breakpoint is real (inline grids can't carry a media query). */
-.audash-duo {{ display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }}
+.goldadvisor-duo {{ display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }}
 @media (max-width: 760px) {{
-    .audash-duo {{ grid-template-columns: 1fr; }}
-    .audash-bench-row {{ grid-template-columns: 1fr; row-gap: 18px; }}
-    .audash-vrule {{ display: none; }}
-    .audash-readout {{ grid-template-columns: 1fr; }}
-    .audash-engine {{ grid-template-columns: repeat(2, 1fr); row-gap: 14px; }}
+    .goldadvisor-duo {{ grid-template-columns: 1fr; }}
+    .goldadvisor-bench-row {{ grid-template-columns: 1fr; row-gap: 18px; }}
+    .goldadvisor-vrule {{ display: none; }}
+    .goldadvisor-readout {{ grid-template-columns: 1fr; }}
+    .goldadvisor-engine {{ grid-template-columns: repeat(2, 1fr); row-gap: 14px; }}
 }}
 
 /* Navigation + radio groups -------------------------------------------- */
@@ -374,8 +374,8 @@ IDENTITY_CSS = f"""
 /* Every section's title block shares the verdict's "resolve" gesture, so a
    nav switch reads as one deliberate transition instead of a hard swap. */
 @media (prefers-reduced-motion: no-preference) {{
-    .audash-page-title {{
-        animation: audash-resolve 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    .goldadvisor-page-title {{
+        animation: goldadvisor-resolve 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }}
 }}
 

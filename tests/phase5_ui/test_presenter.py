@@ -1,7 +1,7 @@
 """Unit tests for the pure presentation helpers (ui/presenter.py).
 
 These encode the display contract from spec §5.3 and the Claude Design file
-(AuDash.dc.html): number formatting, verdict/vote color mapping, the sentiment
+(GoldAdvisor.dc.html): number formatting, verdict/vote color mapping, the sentiment
 gate, the GSR balance geometry, cash<->mass derivation, and the view-models the
 Streamlit layer renders. All functions are pure (no DB, no Streamlit).
 """

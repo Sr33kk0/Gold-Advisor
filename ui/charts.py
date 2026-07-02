@@ -121,8 +121,8 @@ def build_gsr_balance_svg(degrees: float, theme: dict) -> str:
     `degrees` is the beam tilt (+ = gold pan down / gold-rich), from
     presenter.gsr_position. Silver (AG) hangs left, gold (AU) hangs right.
 
-    The beam is emitted *level* and settled into `degrees` by CSS: `.audash-beam`
-    rotates about the fulcrum while each `.audash-pan` glides to its settled
+    The beam is emitted *level* and settled into `degrees` by CSS: `.goldadvisor-beam`
+    rotates about the fulcrum while each `.goldadvisor-pan` glides to its settled
     height, still hanging upright (gravity). The resting transforms (per-element
     inline custom props) carry the final pose, so a motionless / reduced-motion
     render is identical to the animated end state.
@@ -145,15 +145,15 @@ def build_gsr_balance_svg(degrees: float, theme: dict) -> str:
         f'<path d="M {cx - 26:.1f} 150 L {cx + 26:.1f} 150 L {cx + 16:.1f} 160 '
         f'L {cx - 16:.1f} 160 Z" fill="{theme["line"]}"/>'
         # Beam: drawn level, rotated to `degrees` about the fulcrum by CSS.
-        f'<g class="audash-beam" style="--tilt:{degrees:.2f}deg;">'
+        f'<g class="goldadvisor-beam" style="--tilt:{degrees:.2f}deg;">'
         f'<line x1="{l0x:.1f}" y1="{l0y:.1f}" x2="{r0x:.1f}" y2="{r0y:.1f}" '
         f'stroke="{theme["text"]}" stroke-width="3" stroke-linecap="round"/>'
         '</g>'
         f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="5" fill="{theme["accent"]}"/>'
         # Pans: drawn at the level ends, each glides to its settled height.
-        f'<g class="audash-pan" style="--dx:{lx - l0x:.2f}px;--dy:{ly - l0y:.2f}px;">'
+        f'<g class="goldadvisor-pan" style="--dx:{lx - l0x:.2f}px;--dy:{ly - l0y:.2f}px;">'
         f'{_balance_pan(l0x, l0y, theme["silver"], "AG", theme)}</g>'
-        f'<g class="audash-pan" style="--dx:{rx - r0x:.2f}px;--dy:{ry - r0y:.2f}px;">'
+        f'<g class="goldadvisor-pan" style="--dx:{rx - r0x:.2f}px;--dy:{ry - r0y:.2f}px;">'
         f'{_balance_pan(r0x, r0y, theme["gold"], "AU", theme)}</g>'
         '</svg>'
     )

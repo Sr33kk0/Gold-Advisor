@@ -1,4 +1,4 @@
-"""AuDash — Streamlit entry point (Phase 5).
+"""Gold Advisor — Streamlit entry point (Phase 5).
 
 Top chrome + nav, then the dashboard (verdict hero, consensus, instrument
 readout, the "why" ledger, the GSR assay balance, and the analytical charts),
@@ -17,7 +17,7 @@ from ui import charts, data_access, forms, presenter
 from ui.theme import IDENTITY_CSS, THEME
 from utils.timeutil import to_local
 
-st.set_page_config(page_title="AuDash", page_icon="🜚", layout="wide",
+st.set_page_config(page_title="Gold Advisor", page_icon="🜚", layout="wide",
                    initial_sidebar_state="collapsed")
 st.markdown(IDENTITY_CSS, unsafe_allow_html=True)
 
@@ -46,7 +46,7 @@ def _briefing_html(lines: list[dict]) -> str:
         rows += (
             f'<div style="display:grid;grid-template-columns:96px 1fr;gap:14px;'
             f'padding:9px 0;border-bottom:1px solid {t["line"]};">'
-            f'<dt class="audash-eyebrow" style="align-self:baseline;">{ln["label"]}</dt>'
+            f'<dt class="goldadvisor-eyebrow" style="align-self:baseline;">{ln["label"]}</dt>'
             f'<dd style="margin:0;font-family:{t["f_body"]};font-size:14px;'
             f'line-height:1.55;color:{ln["color"]};">{ln["text"]}</dd></div>'
         )
@@ -58,8 +58,8 @@ def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) 
     sentiment gate side by side, kept tight so the live rates sit high on the
     page. The two engines stay visibly distinct (Principle 1, never collapsed)."""
     t = THEME
-    stale = '<span class="audash-stale">STALE</span>' if view["stale"] else ""
-    metal = (f'<span class="audash-verdict-metal">{view["metal_word"]}</span>'
+    stale = '<span class="goldadvisor-stale">STALE</span>' if view["stale"] else ""
+    metal = (f'<span class="goldadvisor-verdict-metal">{view["metal_word"]}</span>'
              if view["metal_word"] else "")
     overridden = view.get("is_overridden")
     # When the risk desk owns the call, mute the directional consensus so a
@@ -72,26 +72,26 @@ def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) 
         f'Directional alpha decoupled by Risk Policy</div>'
         if overridden else "")
     return f"""
-    <div class="audash-duo">
-      <div class="audash-panel audash-panel-verdict">
+    <div class="goldadvisor-duo">
+      <div class="goldadvisor-panel goldadvisor-panel-verdict">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
-          <span class="audash-eyebrow">{eyebrow}</span>{stale}
+          <span class="goldadvisor-eyebrow">{eyebrow}</span>{stale}
         </div>
         <div style="display:flex;align-items:baseline;gap:16px;">
-          <span aria-hidden="true" class="audash-verdict-shape" style="color:{view['color']};">{view['shape']}</span>
-          <div class="audash-verdict-word" role="heading" aria-level="1" style="color:{view['color']};">{view['word']}</div>{metal}
+          <span aria-hidden="true" class="goldadvisor-verdict-shape" style="color:{view['color']};">{view['shape']}</span>
+          <div class="goldadvisor-verdict-word" role="heading" aria-level="1" style="color:{view['color']};">{view['word']}</div>{metal}
         </div>
-        <p class="audash-verdict-reason" style="margin:10px 0 0;">{reason}</p>
+        <p class="goldadvisor-verdict-reason" style="margin:10px 0 0;">{reason}</p>
       </div>
-      <div class="audash-panel audash-panel-verdict" style="display:flex;flex-direction:column;">
-        <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:8px;">Consensus</div>
+      <div class="goldadvisor-panel goldadvisor-panel-verdict" style="display:flex;flex-direction:column;">
+        <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:8px;">Consensus</div>
         <div style="display:flex;align-items:baseline;gap:8px;">
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:30px;line-height:1;color:{consensus_num_color};">{view['net_signed']}</span>
+          <span class="goldadvisor-num" style="font-family:{t['f_data']};font-weight:600;font-size:30px;line-height:1;color:{consensus_num_color};">{view['net_signed']}</span>
           <span style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};">net votes</span>
         </div>
         <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:3px;">threshold ±{view['threshold']} → quant <span style="color:{quant_color};">{view['quant_bias']}</span></div>{decoupled_note}
         <div style="height:1px;background:{t['line']};margin:13px 0;"></div>
-        <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:7px;">Sentiment gate</div>
+        <div class="goldadvisor-eyebrow" role="heading" aria-level="3" style="margin-bottom:7px;">Sentiment gate</div>
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
           <span aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:{view['gate_color']};"></span>
           <span style="font-family:{t['f_ui']};font-size:14px;font-weight:500;color:{t['text']};">{view['gate_label']}</span>
@@ -105,11 +105,11 @@ def _readouts_html(readouts: list[dict], val_size: int) -> str:
     """Borderless label→value rows (a <dl>): label left, tabular value right."""
     rows = ""
     for i, r in enumerate(readouts):
-        unit = (f'<span class="audash-read-unit">{r["unit"]}</span>' if r["unit"] else "")
+        unit = (f'<span class="goldadvisor-read-unit">{r["unit"]}</span>' if r["unit"] else "")
         rows += (
-            f'<div class="audash-read" style="--i:{i};">'
-            f'<dt class="audash-read-label">{r["label"]}</dt>'
-            f'<dd class="audash-read-val"><span class="audash-num" '
+            f'<div class="goldadvisor-read" style="--i:{i};">'
+            f'<dt class="goldadvisor-read-label">{r["label"]}</dt>'
+            f'<dd class="goldadvisor-read-val"><span class="goldadvisor-num" '
             f'style="font-size:{val_size}px;color:{r["color"]};">{r["value"]}</span>{unit}</dd>'
             f'</div>'
         )
@@ -128,38 +128,38 @@ def _readout_zones_html(market: dict, theme: dict) -> str:
     engine = presenter.build_engine_readouts(market, t)
     eng_cells = ""
     for r in engine:
-        unit = (f'<span class="audash-eng-unit">{r["unit"]}</span>' if r["unit"] else "")
+        unit = (f'<span class="goldadvisor-eng-unit">{r["unit"]}</span>' if r["unit"] else "")
         eng_cells += (
-            f'<div class="audash-eng">'
-            f'<dt class="audash-eng-label">{r["label"]}</dt>'
-            f'<dd class="audash-eng-val"><span class="audash-num" '
+            f'<div class="goldadvisor-eng">'
+            f'<dt class="goldadvisor-eng-label">{r["label"]}</dt>'
+            f'<dd class="goldadvisor-eng-val"><span class="goldadvisor-num" '
             f'style="color:{r["color"]};">{r["value"]}</span>{unit}</dd></div>'
         )
     return f"""
-    <section class="audash-bench">
-      <div class="audash-bench-row">
-        <div class="audash-zone">
-          <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Market · MYR/g · Asia/Kuala_Lumpur</div>
-          <dl class="audash-readout">{market_rows}</dl>
+    <section class="goldadvisor-bench">
+      <div class="goldadvisor-bench-row">
+        <div class="goldadvisor-zone">
+          <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Market · MYR/g · Asia/Kuala_Lumpur</div>
+          <dl class="goldadvisor-readout">{market_rows}</dl>
         </div>
-        <div class="audash-vrule" aria-hidden="true"></div>
-        <div class="audash-zone audash-zone-portfolio">
-          <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Portfolio</div>
-          <dl class="audash-readout audash-readout-stack">{port_rows}</dl>
-          <div class="audash-pnl">
-            <span class="audash-pnl-label">{p['label']}</span>
-            <div class="audash-pnl-row">
-              <span aria-hidden="true" class="audash-pnl-shape" style="color:{p['color']};">{p['shape']}</span>
-              <span class="audash-num audash-pnl-val" style="color:{p['color']};">{p['value']}</span>
-              <span class="audash-pnl-unit">{p['unit']}</span>
+        <div class="goldadvisor-vrule" aria-hidden="true"></div>
+        <div class="goldadvisor-zone goldadvisor-zone-portfolio">
+          <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Portfolio</div>
+          <dl class="goldadvisor-readout goldadvisor-readout-stack">{port_rows}</dl>
+          <div class="goldadvisor-pnl">
+            <span class="goldadvisor-pnl-label">{p['label']}</span>
+            <div class="goldadvisor-pnl-row">
+              <span aria-hidden="true" class="goldadvisor-pnl-shape" style="color:{p['color']};">{p['shape']}</span>
+              <span class="goldadvisor-num goldadvisor-pnl-val" style="color:{p['color']};">{p['value']}</span>
+              <span class="goldadvisor-pnl-unit">{p['unit']}</span>
             </div>
           </div>
         </div>
       </div>
-      <div class="audash-hrule" aria-hidden="true"></div>
-      <div class="audash-zone">
-        <div class="audash-eyebrow" role="heading" aria-level="3" style="margin-bottom:11px;">The Engine</div>
-        <dl class="audash-engine">{eng_cells}</dl>
+      <div class="goldadvisor-hrule" aria-hidden="true"></div>
+      <div class="goldadvisor-zone">
+        <div class="goldadvisor-eyebrow" role="heading" aria-level="3" style="margin-bottom:11px;">The Engine</div>
+        <dl class="goldadvisor-engine">{eng_cells}</dl>
       </div>
     </section>"""
 
@@ -174,21 +174,21 @@ def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
             f'align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid {t["line"]};">'
             f'<div role="rowheader"><div style="font-family:{t["f_ui"]};font-size:14px;font-weight:500;color:{t["text"]};">{s["label"]}</div>'
             f'<div style="font-family:{t["f_data"]};font-size:13px;color:{t["sub"]};">{s["detail"]}</div></div>'
-            f'<span role="cell" aria-label="reading {s["value"]}" class="audash-num" style="font-family:{t["f_data"]};font-size:14px;color:{t["sub"]};">{s["value"]}</span>'
-            f'<span role="cell" aria-label="vote {s["vote_text"]}" class="audash-num audash-vote" style="min-width:38px;text-align:center;'
+            f'<span role="cell" aria-label="reading {s["value"]}" class="goldadvisor-num" style="font-family:{t["f_data"]};font-size:14px;color:{t["sub"]};">{s["value"]}</span>'
+            f'<span role="cell" aria-label="vote {s["vote_text"]}" class="goldadvisor-num goldadvisor-vote" style="min-width:38px;text-align:center;'
             f'color:{s["vote_color"]};border:1px solid {s["vote_color"]};">{s["vote_text"]}</span></div>'
         )
     label_color = presenter.gsr_label_color(pos["side"], t)
     return f"""
-    <div class="audash-duo">
-      <div class="audash-panel">
-        <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:16px;">Why · ledger of reasons</div>
+    <div class="goldadvisor-duo">
+      <div class="goldadvisor-panel">
+        <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:16px;">Why · ledger of reasons</div>
         <div role="table" aria-label="Signal ledger — each row gives a signal, its reading, and its vote">
         {row_html}
         <div role="row" style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:14px;padding:13px 0 4px;border-bottom:1px solid {t['line']};">
           <div role="rowheader" style="font-family:{t['f_ui']};font-size:14px;font-weight:600;color:{t['text']};">Net quant bias</div>
-          <span role="cell" class="audash-num" style="font-family:{t['f_data']};font-size:13px;color:{t['muted']};">{view['net_signed']} vs ±{view['threshold']}</span>
-          <span role="cell" class="audash-num" style="min-width:38px;text-align:center;font-family:{t['f_data']};font-weight:600;color:{view['quant_color']};">{view['quant_bias']}</span>
+          <span role="cell" class="goldadvisor-num" style="font-family:{t['f_data']};font-size:13px;color:{t['muted']};">{view['net_signed']} vs ±{view['threshold']}</span>
+          <span role="cell" class="goldadvisor-num" style="min-width:38px;text-align:center;font-family:{t['f_data']};font-weight:600;color:{view['quant_color']};">{view['quant_bias']}</span>
         </div>
         <div role="row" style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:13px;">
           <div role="rowheader" style="font-family:{t['f_ui']};font-size:14px;font-weight:600;color:{t['text']};">Sentiment gate → final</div>
@@ -196,10 +196,10 @@ def _breakdown_gsr_html(rows: list[dict], view: dict, gsr_band: dict,
         </div>
         </div>
       </div>
-      <div class="audash-panel" style="display:flex;flex-direction:column;">
+      <div class="goldadvisor-panel" style="display:flex;flex-direction:column;">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
-          <span class="audash-eyebrow" role="heading" aria-level="2">Gold / Silver Ratio</span>
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:22px;color:{t['text']};">{presenter.fmt(gsr_band['value'], 1)}</span>
+          <span class="goldadvisor-eyebrow" role="heading" aria-level="2">Gold / Silver Ratio</span>
+          <span class="goldadvisor-num" style="font-family:{t['f_data']};font-weight:600;font-size:22px;color:{t['text']};">{presenter.fmt(gsr_band['value'], 1)}</span>
         </div>
         <div style="font-family:{t['f_ui']};font-size:13px;color:{label_color};margin-bottom:8px;">{pos['label']}</div>
         <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:170px;">{svg}</div>
@@ -238,7 +238,7 @@ def render_dashboard(model: dict) -> None:
 
     hdr, toggle = st.columns([3, 2])
     with hdr:
-        st.markdown('<div class="audash-eyebrow" role="heading" aria-level="2" style="margin:6px 0 8px;">'
+        st.markdown('<div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin:6px 0 8px;">'
                     'Gold spot · Bollinger channel · trade marks</div>',
                     unsafe_allow_html=True)
     with toggle:
@@ -251,7 +251,7 @@ def render_dashboard(model: dict) -> None:
             chart["dates"], chart["price"], chart["bands"], chart["markers"], THEME)
         st.plotly_chart(price_fig, width="stretch",
                         config={"displayModeBar": False})
-        st.markdown('<div class="audash-eyebrow" role="heading" aria-level="3" style="margin:6px 0 8px;">'
+        st.markdown('<div class="goldadvisor-eyebrow" role="heading" aria-level="3" style="margin:6px 0 8px;">'
                     'RSI · 14</div>', unsafe_allow_html=True)
         rsi_fig = charts.build_rsi_figure(
             chart["dates"], chart["rsi"],
@@ -269,7 +269,7 @@ def render_chrome() -> str:
     st.markdown(
         f'<div role="banner" style="display:flex;align-items:baseline;gap:10px;">'
         f'<span style="font-family:{THEME["f_display"]};font-weight:700;font-size:24px;'
-        f'letter-spacing:0.04em;color:{THEME["text"]};">AuDash</span></div>',
+        f'letter-spacing:0.04em;color:{THEME["text"]};">Gold Advisor</span></div>',
         unsafe_allow_html=True,
     )
     return st.radio("Navigation",
@@ -301,14 +301,14 @@ def _unavailable_panel_html(locked: bool, detail: str) -> str:
         eyebrow = "Capital protection · instrument holding"
         reason = (
             "The background worker is committing a fresh reading, so the "
-            "database is briefly locked. AuDash is holding rather than show a "
+            "database is briefly locked. Gold Advisor is holding rather than show a "
             "half-written number — your capital is never judged on partial "
             "data. The reading clears on its own once the write completes.")
         note = "Database locked · worker mid-write"
     else:
         eyebrow = "Capital protection · no reading"
         reason = (
-            "AuDash can't reach its data store, so it is declining to show a "
+            "Gold Advisor can't reach its data store, so it is declining to show a "
             "verdict rather than guess — no trade should be made on an absent "
             "reading. Confirm the worker and its data volume are running, then "
             "retake the reading below.")
@@ -321,20 +321,20 @@ def _unavailable_panel_html(locked: bool, detail: str) -> str:
         f'<rect x="12.6" y="5" width="3.4" height="12" rx="1" fill="{hold}"></rect>'
         '</svg>')
     return (
-        f'<div class="audash-panel audash-hold-panel" role="status" aria-live="polite" '
+        f'<div class="goldadvisor-panel goldadvisor-hold-panel" role="status" aria-live="polite" '
         f'style="margin-bottom:20px;border-color:{hold}40;">'
-        f'<span class="audash-eyebrow">{eyebrow}</span>'
+        f'<span class="goldadvisor-eyebrow">{eyebrow}</span>'
         f'<div style="display:flex;align-items:center;gap:14px;margin-top:10px;">'
         f'{pause}'
         f'<span style="font-family:{t["f_display"]};font-weight:700;'
         f'font-size:60px;line-height:0.9;letter-spacing:0.01em;color:{hold};">'
         f'HOLD</span>'
-        f'<span class="audash-num" style="font-family:{t["f_data"]};'
+        f'<span class="goldadvisor-num" style="font-family:{t["f_data"]};'
         f'font-size:10px;font-weight:600;letter-spacing:0.16em;color:{hold};'
         f'border:1px solid {hold};padding:3px 8px;border-radius:2px;">'
         f'NO READING</span></div>'
-        f'<p class="audash-verdict-reason" style="margin:16px 0 0;">{reason}</p>'
-        f'<div class="audash-num" style="font-family:{t["f_data"]};'
+        f'<p class="goldadvisor-verdict-reason" style="margin:16px 0 0;">{reason}</p>'
+        f'<div class="goldadvisor-num" style="font-family:{t["f_data"]};'
         f'font-size:11.5px;color:{t["muted"]};margin-top:14px;'
         f'letter-spacing:0.02em;">{note_html}</div></div>'
     )

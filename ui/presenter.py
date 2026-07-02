@@ -3,7 +3,7 @@
 No Streamlit, no DB, no network (mirrors the analytics purity rule). Everything
 that decides *what text/color/shape* a value renders as lives here, so the
 Streamlit shells in app.py/forms.py stay thin and the display contract from
-spec §5.3 + AuDash.dc.html is unit-tested directly.
+spec §5.3 + GoldAdvisor.dc.html is unit-tested directly.
 
 The verdict word, votes, and gate are derived from the structured dict returned
 by analytics.signals.generate_trade_signal — the UI never re-implements fusion.

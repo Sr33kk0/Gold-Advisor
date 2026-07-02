@@ -1,4 +1,4 @@
-# AuDash — Direction A "Assayer's Terminal" theme base.
+# Gold Advisor — Direction A "Assayer's Terminal" theme base.
 # The fine-grained identity (fonts, verdict hero, metric cards, GSR balance)
 # is layered on top via the injected CSS in ui/theme.py; this sets the chrome
 # Streamlit owns before that CSS loads.

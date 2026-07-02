@@ -29,7 +29,7 @@ def _seed(db_file) -> None:
 
 
 def _run(tmp_path, monkeypatch) -> AppTest:
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     return AppTest.from_file(APP, default_timeout=60).run()
 
@@ -56,7 +56,7 @@ def test_dashboard_exposes_semantic_structure(tmp_path, monkeypatch):
 
     assert 'role="heading" aria-level="1"' in blob          # verdict == h1
     assert blob.count('role="heading"') >= 6                 # + section headings
-    assert ('class="audash-readout"' in blob                 # readout is a <dl>
+    assert ('class="goldadvisor-readout"' in blob                 # readout is a <dl>
             and "<dt " in blob and "<dd" in blob)
     assert all(r in blob for r in (                          # ledger == table
         'role="table"', 'role="row"', 'role="rowheader"', 'role="cell"'))
@@ -90,7 +90,7 @@ def test_stale_verdict_html_stays_one_block(tmp_path, monkeypatch):
     blank line: Streamlit dedents the body, and a blank line mid-HTML closes
     the CommonMark HTML block, dumping the rest (incl. the verdict reason) as
     raw escaped text. Guard: the verdict body carries no interior blank line."""
-    _seed_stale(tmp_path / "audash.db")
+    _seed_stale(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not at.exception
@@ -100,7 +100,7 @@ def test_stale_verdict_html_stays_one_block(tmp_path, monkeypatch):
     # verbatim, so the phrase alone now matches two markdown blocks.
     verdict = next(m.value for m in at.markdown
                    if "Sentiment is stale" in m.value
-                   and 'class="audash-verdict-reason"' in m.value)
+                   and 'class="goldadvisor-verdict-reason"' in m.value)
     interior = verdict.splitlines()[1:-1]  # edges are stripped by clean_text
     assert all(line.strip() for line in interior), \
         "blank line inside verdict HTML closes the block -> raw text leaks"
@@ -120,7 +120,7 @@ def test_db_locked_renders_capital_protection_panel(tmp_path, monkeypatch):
     """A worker-mid-write lock must surface the on-brand 'holding' panel — a
     visible, protective HOLD — never a raw traceback (Rule 3 / capital
     protection)."""
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr("ui.data_access.load_dashboard_model", _boom_locked)
     at = AppTest.from_file(APP, default_timeout=60).run()
@@ -137,7 +137,7 @@ def test_db_locked_renders_capital_protection_panel(tmp_path, monkeypatch):
 def test_db_locked_panel_leaks_no_traceback(tmp_path, monkeypatch):
     """The panel explains, it doesn't dump internals: no Python traceback noise
     (file paths, 'Traceback', frame arrows) reaches the surface."""
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr("ui.data_access.load_dashboard_model", _boom_locked)
     at = AppTest.from_file(APP, default_timeout=60).run()
@@ -150,7 +150,7 @@ def test_db_locked_panel_leaks_no_traceback(tmp_path, monkeypatch):
 def test_generic_read_failure_renders_panel_and_keeps_nav(tmp_path, monkeypatch):
     """Any read-side failure (not just a lock) degrades to the on-brand panel,
     and the nav survives so the user can move or retry."""
-    _seed(tmp_path / "audash.db")
+    _seed(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr("ui.data_access.load_dashboard_model", _boom_generic)
     at = AppTest.from_file(APP, default_timeout=60).run()
@@ -184,7 +184,7 @@ def _seed_losing(db_file) -> None:
 
 
 def test_dashboard_decouples_consensus_on_override(tmp_path, monkeypatch):
-    _seed_losing(tmp_path / "audash.db")
+    _seed_losing(tmp_path / "goldadvisor.db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     at = AppTest.from_file(APP, default_timeout=60).run()
 
