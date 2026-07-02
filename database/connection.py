@@ -208,6 +208,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "gsr_band_deviations": "2",
     # Signal fusion
     "quant_vote_threshold": "2",
+    "momentum_r2_min": "0.5",   # min trend R² before the ROC vote is trusted
     # Risk policy (position-aware overrides)
     "stop_loss_pct": "5.0",
     "take_profit_pct": "10.0",

@@ -67,6 +67,29 @@ def test_load_dashboard_model_populates_market_and_signal(db_conn):
     assert model["signal_result"]["sentiment_stale"] is False
 
 
+def test_load_dashboard_model_populates_momentum_context(db_conn):
+    _seed_spot(db_conn)
+    model = data_access.load_dashboard_model(db_conn, now=now_utc())
+
+    # The four context indicators land on `market`; ROC lands on signal_inputs.
+    for key in ("momentum_roc", "trend_strength", "up_day_ratio",
+                "price_deviation", "coeff_variation"):
+        assert isinstance(model["market"][key], float)
+    assert isinstance(model["signal_inputs"]["roc"], float)
+
+
+def test_clean_downtrend_produces_negative_momentum_vote(db_conn):
+    # _seed_spot lays down a steady linear decline -> clean trend (high R^2),
+    # negative ROC -> the R^2 gate opens and momentum votes SELL.
+    _seed_spot(db_conn)
+    model = data_access.load_dashboard_model(db_conn, now=now_utc())
+    sig = model["signal_result"]
+
+    assert sig["trend_strength"] > 0.5
+    assert model["market"]["momentum_roc"] < 0
+    assert sig["roc_vote"] == -1
+
+
 def test_chart_markers_exclude_voided_trades(db_conn):
     _seed_spot(db_conn)
     tx = log_transaction(db_conn, "BUY", "GOLD", 500.0, 10.0, 5000.0)

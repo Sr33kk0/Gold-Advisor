@@ -63,7 +63,7 @@ IDENTITY_CSS = f"""
 .audash-eyebrow {{
     font-family: {THEME['f_data']};
     font-size: 12px;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: {THEME['sub']};
 }}
@@ -72,20 +72,21 @@ IDENTITY_CSS = f"""
 .audash-verdict-word {{
     font-family: {THEME['f_display']};
     font-weight: 700;
-    font-size: 72px;
+    font-size: 60px;
     line-height: 0.9;
     letter-spacing: 0.01em;
 }}
 /* The verdict glyph (▲ ▼ ○) — shape-encodes the call beside the word/color. */
 .audash-verdict-shape {{
     font-family: {THEME['f_data']};
-    font-size: 34px;
+    font-size: 28px;
     line-height: 0.9;
 }}
 .audash-verdict-metal {{
     font-family: {THEME['f_display']};
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 500;
+    letter-spacing: 0.04em;
     color: {THEME['sub']};
 }}
 .audash-verdict-reason {{
@@ -100,7 +101,7 @@ IDENTITY_CSS = f"""
     font-family: {THEME['f_data']};
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.10em;
     color: {THEME['sell']};
     border: 1px solid {THEME['sell']};
     padding: 2px 7px;
@@ -160,7 +161,7 @@ IDENTITY_CSS = f"""
     font-family: {THEME['f_ui']};
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: {THEME['sub']};
 }}
@@ -169,7 +170,7 @@ IDENTITY_CSS = f"""
 .audash-pnl-val {{
     font-family: {THEME['f_data']};
     font-weight: 600;
-    font-size: 36px;
+    font-size: 30px;
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }}
@@ -330,6 +331,52 @@ IDENTITY_CSS = f"""
     .audash-vrule {{ display: none; }}
     .audash-readout {{ grid-template-columns: 1fr; }}
     .audash-engine {{ grid-template-columns: repeat(2, 1fr); row-gap: 14px; }}
+}}
+
+/* Navigation + radio groups -------------------------------------------- */
+/* One segmented-control vocabulary for every radio (nav, metal, action,
+   enter-by): readable inactive labels (not disabled-looking), a clear
+   selected state, breathing room between segments. */
+.stRadio [role="radiogroup"] {{ gap: 4px 18px; }}
+.stRadio label p {{
+    font-family: {THEME['f_ui']};
+    font-size: 14px;
+    color: {THEME['sub']};
+}}
+.stRadio label:has(input:checked) p {{
+    color: {THEME['text']};
+    font-weight: 600;
+}}
+.stRadio label:hover p {{ color: {THEME['text']}; }}
+/* The top nav gets a gold underline on the active section so "where am I"
+   never depends on dimming alone. */
+[data-testid="stRadio"]:has(> div > [aria-label="Navigation"]) {{ margin: 6px 0 14px; }}
+.stRadio label:has(input:checked) div[data-testid="stMarkdownContainer"] {{
+    box-shadow: inset 0 -2px 0 {THEME['accent']};
+    padding-bottom: 2px;
+}}
+
+/* Inputs ---------------------------------------------------------------- */
+/* Legible labels over the fields (not microscopic slivers), mono digits
+   inside, and left breathing room so typed values don't hug the border. */
+.stTextInput label p, .stNumberInput label p, .stDateInput label p {{
+    font-family: {THEME['f_ui']};
+    font-size: 13px;
+    color: {THEME['sub']};
+}}
+.stTextInput input, .stNumberInput input, .stDateInput input {{
+    font-family: {THEME['f_data']};
+    font-variant-numeric: tabular-nums;
+    padding-left: 12px;
+}}
+
+/* Page entrance --------------------------------------------------------- */
+/* Every section's title block shares the verdict's "resolve" gesture, so a
+   nav switch reads as one deliberate transition instead of a hard swap. */
+@media (prefers-reduced-motion: no-preference) {{
+    .audash-page-title {{
+        animation: audash-resolve 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }}
 }}
 
 /* Streamlit chrome tidy ------------------------------------------------ */

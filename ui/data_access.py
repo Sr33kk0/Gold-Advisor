@@ -15,8 +15,10 @@ import pandas as pd
 
 from analytics.portfolio import calculate_cost_basis, evaluate_unrealized_pnl
 from analytics.quantitative import (
-    compute_gold_silver_ratio, compute_relative_strength_index,
-    compute_volatility_bands,
+    compute_coefficient_of_variation, compute_gold_silver_ratio,
+    compute_momentum_roc, compute_price_deviation,
+    compute_relative_strength_index, compute_trend_strength,
+    compute_up_day_ratio, compute_volatility_bands,
 )
 from analytics.risk import apply_position_policy
 from analytics.signals import generate_trade_signal
@@ -34,6 +36,13 @@ __all__ = ["fetch_transactions", "load_dashboard_model"]
 _GSR_BAND_WINDOW = 20
 _NEUTRAL_RSI = 50.0      # no-data placeholder that yields a 0 RSI vote
 _NEUTRAL_PCT_B = 0.5     # mid-channel -> 0 volatility vote
+
+# Momentum-context windows (hardcoded like _GSR_BAND_WINDOW; qlib158 defaults).
+_ROC_WINDOW = 10         # rate-of-change lookback
+_TREND_WINDOW = 20       # R² trend-strength window
+_UPDAY_WINDOW = 10       # up-day-ratio window
+_DEV_WINDOW = 20         # price-deviation window
+_COV_WINDOW = 20         # coefficient-of-variation window
 
 
 def _load_settings(conn: sqlite3.Connection) -> dict[str, str]:
@@ -104,6 +113,11 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
             matrix["gold_rate_per_oz"], matrix["silver_rate_per_oz"])
         rsi_series = compute_relative_strength_index(gold_g, rsi_period)
         bands = compute_volatility_bands(gold_g, deviations=vol_dev)
+        roc_series = compute_momentum_roc(gold_g, _ROC_WINDOW)
+        trend_series = compute_trend_strength(gold_g, _TREND_WINDOW)
+        upday_series = compute_up_day_ratio(gold_g, _UPDAY_WINDOW)
+        dev_series = compute_price_deviation(gold_g, _DEV_WINDOW)
+        cov_series = compute_coefficient_of_variation(gold_g, _COV_WINDOW)
         gsr_mid = gsr_series.rolling(_GSR_BAND_WINDOW).mean()
         gsr_sd = gsr_series.rolling(_GSR_BAND_WINDOW).std(ddof=0)
         gsr_upper_series = gsr_mid + gsr_dev * gsr_sd
@@ -116,6 +130,8 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
         dates = []
         gold_g = rsi_series = gsr_series = None
         silver_g = gsr_upper_series = gsr_lower_series = None
+        roc_series = trend_series = upday_series = None
+        dev_series = cov_series = None
         bands = pd.DataFrame(columns=["middle", "upper", "lower", "percent_b"])
         spot_g_today = silver_g_today = 0.0
         spot_index = silver_index = pd.Series(dtype=float)
@@ -128,6 +144,14 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
     gsr_val = _last_float(gsr_series) or 0.0
     gsr_up = _last_float(gsr_upper_series)
     gsr_lo = _last_float(gsr_lower_series)
+
+    # Momentum context (neutralized when history is too short to be meaningful).
+    roc_val = _last_float(roc_series) or 0.0        # no momentum
+    trend_val = _last_float(trend_series) or 0.0    # R²=0 -> below any gate
+    upday_val = _last_float(upday_series)
+    upday_val = upday_val if upday_val is not None else 0.5  # no directional bias
+    dev_val = _last_float(dev_series) or 0.0
+    cov_val = _last_float(cov_series) or 0.0
 
     # Trades drive the portfolio; quotes drive the displayed rates + spread.
     gold_trades = fetch_transactions(conn, metal="GOLD")
@@ -165,6 +189,8 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
         rsi_overbought=float(s["rsi_overbought"]),
         quant_vote_threshold=threshold,
         sentiment_max_age_days=float(s["sentiment_max_age_days"]),
+        momentum_roc=roc_val, trend_strength=trend_val,
+        momentum_r2_min=float(s["momentum_r2_min"]),
     )
     # Risk desk (Asymmetric Agency): the position may INITIATE a REDUCE_ONLY
     # stop-loss / take-profit SELL or veto an impossible / over-capacity call.
@@ -185,6 +211,9 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
         "holdings": pf["holding_grams"], "cost_basis": pf["cost_basis"],
         "pnl": pnl, "rsi": rsi_val, "percent_b": pct_b,
         "sentiment": sentiment_score if sentiment_score is not None else 0.0,
+        "momentum_roc": roc_val, "trend_strength": trend_val,
+        "up_day_ratio": upday_val, "price_deviation": dev_val,
+        "coeff_variation": cov_val,
     }
 
     # Voided trades and their reversals net to zero, so they're hidden from the
@@ -204,7 +233,8 @@ def load_dashboard_model(conn: sqlite3.Connection, *,
         "settings": s,
         "threshold": threshold,
         "market": market,
-        "signal_inputs": {"rsi": rsi_val, "percent_b": pct_b, "gsr": gsr_val},
+        "signal_inputs": {"rsi": rsi_val, "percent_b": pct_b, "gsr": gsr_val,
+                          "roc": roc_val},
         "signal_result": signal_result,
         "gsr_band": {
             "value": gsr_val,

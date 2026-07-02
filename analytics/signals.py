@@ -12,8 +12,18 @@ def generate_trade_signal(*, rsi: float, percent_b: float, gsr: float,
                           sentiment_age_days: float | None,
                           rsi_oversold: float, rsi_overbought: float,
                           quant_vote_threshold: int,
-                          sentiment_max_age_days: float) -> dict[str, object]:
-    """Fuse quant indicators + sentiment into BUY/SELL/HOLD with a breakdown."""
+                          sentiment_max_age_days: float,
+                          momentum_roc: float | None = None,
+                          trend_strength: float | None = None,
+                          momentum_r2_min: float = 0.0) -> dict[str, object]:
+    """Fuse quant indicators + sentiment into BUY/SELL/HOLD with a breakdown.
+
+    `momentum_roc` (rate of change) is a trend-following vote gated by
+    `trend_strength` (R² of price vs a linear trend): momentum is only trusted
+    when the trend is clean (R² >= momentum_r2_min), so it stays silent in
+    choppy markets and can brake a mean-reversion buy into a clean downtrend.
+    Both default to a muted vote when absent (backward-compatible).
+    """
     reasons: list[str] = []
 
     if rsi < rsi_oversold:
@@ -43,7 +53,28 @@ def generate_trade_signal(*, rsi: float, percent_b: float, gsr: float,
     else:
         gsr_vote = 0
 
-    net = rsi_vote + vol_vote + gsr_vote
+    # Momentum (trend-following), gated by trend strength: silent unless the
+    # trend is clean enough (R² >= min) to trust the direction.
+    if (momentum_roc is None or trend_strength is None
+            or trend_strength < momentum_r2_min):
+        roc_vote = 0
+        if (trend_strength is not None and momentum_roc is not None
+                and trend_strength < momentum_r2_min):
+            reasons.append(
+                f"Trend R² {trend_strength:.2f} < {momentum_r2_min:g}: "
+                "momentum untrusted (choppy) -> no vote")
+    elif momentum_roc > 0:
+        roc_vote = 1
+        reasons.append(f"Momentum +{momentum_roc:.3f} in a clean trend "
+                       f"(R² {trend_strength:.2f}) (buy bias)")
+    elif momentum_roc < 0:
+        roc_vote = -1
+        reasons.append(f"Momentum {momentum_roc:.3f} in a clean trend "
+                       f"(R² {trend_strength:.2f}) (sell bias)")
+    else:
+        roc_vote = 0
+
+    net = rsi_vote + vol_vote + gsr_vote + roc_vote
     if net >= quant_vote_threshold:
         quant_bias = "BUY"
     elif net <= -quant_vote_threshold:
@@ -71,6 +102,8 @@ def generate_trade_signal(*, rsi: float, percent_b: float, gsr: float,
         "rsi_vote": rsi_vote,
         "vol_vote": vol_vote,
         "gsr_vote": gsr_vote,
+        "roc_vote": roc_vote,
+        "trend_strength": trend_strength,
         "net_votes": net,
         "quant_bias": quant_bias,
         "sentiment_score": sentiment_score,

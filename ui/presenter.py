@@ -15,12 +15,16 @@ from datetime import datetime
 
 # --- number formatting -------------------------------------------------------
 
-def fmt(n: float, d: int = 6) -> str:
-    """Thousands-grouped fixed-decimal number (matches the design's en-US style)."""
+def fmt(n: float, d: int = 2) -> str:
+    """Thousands-grouped fixed-decimal number (matches the design's en-US style).
+
+    2 decimals by default — a MYR price never needs fractional cents beyond
+    that; masses pass d=3 explicitly.
+    """
     return f"{n:,.{d}f}"
 
 
-def signed(n: float, d: int = 6) -> str:
+def signed(n: float, d: int = 2) -> str:
     """Like fmt, but force a leading '+' on non-negative values."""
     return ("+" if n >= 0 else "") + fmt(n, d)
 
@@ -257,7 +261,7 @@ def backdated_quote(action: str, entered_rate: float, *, buy_spread: float,
 def trade_confirm_line(action: str, metal: str, mass_grams: float,
                        fiat_total_myr: float, rate: float) -> str:
     """One-line, exact restatement of what a confirm will write to the ledger."""
-    return (f"{action} · {metal} · {fmt(mass_grams, 6)} g "
+    return (f"{action} · {metal} · {fmt(mass_grams, 3)} g "
             f"@ {fmt(rate)} MYR/g · RM {fmt(fiat_total_myr)}")
 
 
@@ -309,7 +313,7 @@ def build_recent_trades(trades, theme: dict, limit: int = 8) -> list[dict]:
             "metal": str(r["metal"]),
             "color": theme["buy"] if action == "BUY" else theme["sell"],
             "opposite": "SELL" if action == "BUY" else "BUY",
-            "mass": fmt(float(r["mass_grams"]), 6),
+            "mass": fmt(float(r["mass_grams"]), 3),
             "rate": fmt(float(r["execution_rate_myr"])),
             "fiat": fmt(float(r["fiat_total_myr"])),
             "execution_rate_myr": float(r["execution_rate_myr"]),
@@ -429,7 +433,7 @@ def build_portfolio_readouts(market: dict, theme: dict) -> dict[str, object]:
     """Zone B — secondary holdings/cost basis plus the emphasized PnL."""
     return {
         "secondary": [
-            _readout("Holdings", fmt(market["holdings"], 6), "g", theme["text"]),
+            _readout("Holdings", fmt(market["holdings"], 3), "g", theme["text"]),
             _readout("Cost basis", fmt(market["cost_basis"]), "MYR/g", theme["text"]),
         ],
         "pnl": pnl_readout(market["pnl"], theme),
@@ -437,10 +441,20 @@ def build_portfolio_readouts(market: dict, theme: dict) -> dict[str, object]:
 
 
 def build_engine_readouts(market: dict, theme: dict) -> list[dict[str, str]]:
-    """Zone C — secondary raw engine readings (pre-vote), shown tight + small."""
+    """Zone C — secondary raw engine readings (pre-vote), shown tight + small.
+
+    Includes the momentum-context indicators that inform but don't vote: Trend
+    R² (how clean the trend is — the gate on the momentum vote), Up-day ratio,
+    Price deviation (mean-reversion, sign-colored), and CoV (relative volatility).
+    """
     return [
         _readout("RSI", fmt(market["rsi"], 1), "", theme["text"]),
         _readout("%B", fmt(market["percent_b"], 2), "", theme["text"]),
+        _readout("Trend R²", fmt(market["trend_strength"], 2), "", theme["text"]),
+        _readout("Up-day ratio", fmt(market["up_day_ratio"], 2), "", theme["text"]),
+        _readout("Price dev", signed(market["price_deviation"], 4), "",
+                 _sign_color(market["price_deviation"], theme)),
+        _readout("Volatility (CoV)", fmt(market["coeff_variation"], 4), "", theme["muted"]),
         _readout("Sentiment", signed(market["sentiment"], 1), "/ ±5",
                  _sign_color(market["sentiment"], theme)),
         _readout("Eff. buy spread", fmt(market["buy_spread"]), "MYR/g", theme["muted"]),
@@ -455,6 +469,7 @@ def _signal_detail(kind: str, vote: int) -> str:
         "rsi": ("below oversold → buy bias", "above overbought → sell bias", "within neutral band"),
         "vol": ("at/below lower band → buy", "at/above upper band → sell", "mid-channel"),
         "gsr": ("below band → gold cheap (buy)", "above band → gold rich (sell)", "within band"),
+        "momentum": ("clean uptrend → buy bias", "clean downtrend → sell bias", "no confirmed trend"),
     }
     pos, neg, neutral = table[kind]
     return pos if vote > 0 else neg if vote < 0 else neutral
@@ -467,6 +482,7 @@ def build_signal_rows(signal_result: dict, inputs: dict,
         ("RSI (14)", "rsi", signal_result["rsi_vote"], fmt(inputs["rsi"], 1)),
         ("Volatility band (%B)", "vol", signal_result["vol_vote"], fmt(inputs["percent_b"], 2)),
         ("Gold / Silver Ratio", "gsr", signal_result["gsr_vote"], fmt(inputs["gsr"], 1)),
+        ("Momentum (ROC)", "momentum", signal_result["roc_vote"], signed(inputs["roc"], 4)),
     ]
     return [
         {
@@ -595,6 +611,7 @@ def settings_groups(settings: dict) -> list[dict[str, object]]:
         {"title": "Ratio & fusion", "fields": [
             _field("GSR band σ", "gsr_band_deviations", settings, "number"),
             _field("Quant vote threshold", "quant_vote_threshold", settings, "number"),
+            _field("Momentum trend R² min", "momentum_r2_min", settings, "number"),
             _field("Sentiment max age (days)", "sentiment_max_age_days", settings, "number"),
         ]},
         {"title": "Risk policy", "fields": [

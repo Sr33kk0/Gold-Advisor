@@ -28,9 +28,11 @@ from utils.timeutil import now_utc
 
 def _heading(eyebrow: str, title: str, blurb: str) -> None:
     st.markdown(
+        f'<div class="audash-page-title">'
         f'<div class="audash-eyebrow">{eyebrow}</div>'
         f'<div role="heading" aria-level="1" style="font-family:{THEME["f_display"]};'
         f'font-weight:600;font-size:34px;color:{THEME["text"]};margin:2px 0 4px;">{title}</div>'
+        f'</div>'
         f'<p style="font-family:{THEME["f_body"]};font-size:15px;'
         f'color:{THEME["sub"]};max-width:70ch;margin:0 0 22px;">{blurb}</p>',
         unsafe_allow_html=True,
@@ -240,7 +242,7 @@ def _render_backdated_rates(metal: str, action: str, trade_date,
     k = f"{trade_date.isoformat()}_{metal}_{action}"
     rate = st.number_input(
         f"Platform {action.lower()} rate · MYR/g", min_value=0.0,
-        value=float(prefills[side]), step=1.0, format="%.6f",
+        value=float(prefills[side]), step=1.0, format="%.2f",
         key=f"trade_rate_{k}",
         help=f"The platform's {action} price on this date — what this {action} "
              f"executes at and is recorded as the {trade_date.isoformat()} quote.")
@@ -299,7 +301,7 @@ def _render_trade_entry(model: dict) -> None:
 
     mode = st.radio("Enter by", ["cash", "mass"], horizontal=True, key="trade_mode",
                     format_func=lambda m: "Cash · MYR" if m == "cash" else "Mass · grams")
-    step, fmt_spec = (100.0, "%.6f") if mode == "cash" else (0.1, "%.6f")
+    step, fmt_spec = (100.0, "%.2f") if mode == "cash" else (0.1, "%.3f")
     primary = st.number_input(
         "Cash · MYR" if mode == "cash" else "Mass · grams",
         min_value=0.0, value=0.0, step=step, format=fmt_spec, key="trade_primary",
@@ -307,7 +309,7 @@ def _render_trade_entry(model: dict) -> None:
 
     amounts = presenter.resolve_trade_amounts(mode, primary, rate)
     if mode == "cash":
-        derived = f"{presenter.fmt(amounts['mass_grams'], 6)} g"
+        derived = f"{presenter.fmt(amounts['mass_grams'], 3)} g"
     else:
         derived = f"RM {presenter.fmt(amounts['fiat_total_myr'])}"
     st.markdown(
@@ -437,7 +439,7 @@ def _render_trade_row(row: dict, armed: bool) -> None:
     with action:
         if not armed:
             st.button(
-                f"Void {row['action']} {row['metal']}…", key=f"void_{row['id']}",
+                "Void…", key=f"void_{row['id']}",
                 help=f"Reverse the {row['action']} {row['metal']} trade from "
                      f"{row['date']}.",
                 on_click=_arm_void, args=(row["id"],))
@@ -462,10 +464,10 @@ def _render_void_confirm(row: dict) -> None:
              f"position unchanged, ledger preserved")
 
     confirm, cancel = st.columns([1, 1])
-    confirm.button(f"Void {row['action']} {row['metal']}", key=f"voidok_{row['id']}",
+    confirm.button("Void trade", key=f"voidok_{row['id']}",
                    type="primary", on_click=_commit_void,
                    args=(entry, row["ts"], row["id"], flash))
-    cancel.button(f"Keep {row['action']} {row['metal']}", key=f"voidcancel_{row['id']}",
+    cancel.button("Keep trade", key=f"voidcancel_{row['id']}",
                   on_click=_cancel_void)
 
 
@@ -484,10 +486,10 @@ def render_daily_quotes_form(model: dict) -> None:
     quote_date = st.date_input("Date", value=date.fromisoformat(model["today"]),
                               key="quote_date")
     buy_rate = st.number_input(
-        "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.6f",
+        "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
         key="quote_buy", help="Price you pay to buy (≈ spot + spread).")
     sell_rate = st.number_input(
-        "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.6f",
+        "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
         key="quote_sell", help="Price you receive to sell (≈ spot − spread).")
 
     _render_quote_preview(model, metal, buy_rate, sell_rate)
@@ -585,7 +587,7 @@ def _render_quote_row(row: dict) -> None:
         st.markdown(_quote_row_dl(row), unsafe_allow_html=True)
     with action:
         st.button(
-            f"Delete {row['metal']} {row['date']}",
+            "Delete",
             key=f"delq_{row['date']}_{row['metal']}",
             help=f"Remove the {row['metal']} quote for {row['date']}.",
             on_click=_delete_quote, args=(row["date"], row["metal"]))

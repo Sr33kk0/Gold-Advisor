@@ -71,7 +71,7 @@ def _verdict_consensus_html(view: dict, reason: str, detail: str, eyebrow: str) 
       <div class="audash-panel audash-panel-verdict" style="display:flex;flex-direction:column;">
         <div class="audash-eyebrow" role="heading" aria-level="2" style="margin-bottom:8px;">Consensus</div>
         <div style="display:flex;align-items:baseline;gap:8px;">
-          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:38px;line-height:1;color:{consensus_num_color};">{view['net_signed']}</span>
+          <span class="audash-num" style="font-family:{t['f_data']};font-weight:600;font-size:30px;line-height:1;color:{consensus_num_color};">{view['net_signed']}</span>
           <span style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};">net votes</span>
         </div>
         <div style="font-family:{t['f_data']};font-size:13px;color:{t['sub']};margin-top:3px;">threshold ±{view['threshold']} → quant <span style="color:{quant_color};">{view['quant_bias']}</span></div>{decoupled_note}
@@ -245,7 +245,7 @@ def render_chrome() -> str:
         f'<span style="font-family:{THEME["f_display"]};font-weight:700;font-size:24px;'
         f'letter-spacing:0.04em;color:{THEME["text"]};">AuDash</span>'
         f'<span aria-hidden="true" class="audash-num" style="font-family:{THEME["f_data"]};font-size:11px;'
-        f'letter-spacing:0.18em;color:{THEME["accent"]};border:1px solid {THEME["line"]};'
+        f'letter-spacing:0.12em;color:{THEME["accent"]};border:1px solid {THEME["line"]};'
         f'padding:2px 6px;border-radius:2px;">999.9</span></div>',
         unsafe_allow_html=True,
     )
@@ -304,7 +304,7 @@ def _unavailable_panel_html(locked: bool, detail: str) -> str:
         f'<div style="display:flex;align-items:center;gap:14px;margin-top:10px;">'
         f'{pause}'
         f'<span style="font-family:{t["f_display"]};font-weight:700;'
-        f'font-size:64px;line-height:0.9;letter-spacing:0.01em;color:{hold};">'
+        f'font-size:60px;line-height:0.9;letter-spacing:0.01em;color:{hold};">'
         f'HOLD</span>'
         f'<span class="audash-num" style="font-family:{t["f_data"]};'
         f'font-size:10px;font-weight:600;letter-spacing:0.16em;color:{hold};'

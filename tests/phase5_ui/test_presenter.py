@@ -18,8 +18,8 @@ from ui.theme import THEME
 # --- number formatting -------------------------------------------------------
 
 def test_fmt_groups_thousands_and_fixes_decimals():
-    assert presenter.fmt(1234.5) == "1,234.500000"
-    assert presenter.fmt(520.0) == "520.000000"
+    assert presenter.fmt(1234.5) == "1,234.50"
+    assert presenter.fmt(520.0) == "520.00"
     assert presenter.fmt(73.4, 1) == "73.4"
 
 
@@ -154,6 +154,8 @@ def _market():
         "buy_spread": 12.0, "sell_spread": 8.0,
         "holdings": 125.0, "cost_basis": 478.5,
         "pnl": 2687.5, "rsi": 73.4, "percent_b": 1.04, "sentiment": 1.2,
+        "momentum_roc": 0.03, "trend_strength": 0.82, "up_day_ratio": 0.7,
+        "price_deviation": 0.015, "coeff_variation": 0.012,
     }
 
 
@@ -161,7 +163,7 @@ def _market():
 def test_build_market_readouts_four_rates_colored_by_metal():
     r = presenter.build_market_readouts(_market(), THEME)
     assert [x["label"] for x in r] == ["Gold buy", "Gold sell", "Silver buy", "Silver sell"]
-    assert r[0]["value"] == "520.000000" and r[0]["color"] == THEME["gold"]
+    assert r[0]["value"] == "520.00" and r[0]["color"] == THEME["gold"]
     assert r[2]["color"] == THEME["silver"]
     assert all(x["unit"] == "MYR/g" for x in r)
 
@@ -169,7 +171,7 @@ def test_build_market_readouts_four_rates_colored_by_metal():
 # Zone B — the Portfolio: PnL is the emphasized readout (sign + shape + color).
 def test_pnl_readout_signs_shape_and_color():
     pos = presenter.pnl_readout(2687.5, THEME)
-    assert pos["value"] == "+2,687.500000"
+    assert pos["value"] == "+2,687.50"
     assert pos["shape"] == "▲" and pos["color"] == THEME["buy"]
     neg = presenter.pnl_readout(-100.0, THEME)
     assert neg["shape"] == "▼" and neg["color"] == THEME["sell"]
@@ -180,16 +182,17 @@ def test_pnl_readout_signs_shape_and_color():
 def test_build_portfolio_readouts_secondary_and_emphasized_pnl():
     port = presenter.build_portfolio_readouts(_market(), THEME)
     assert [x["label"] for x in port["secondary"]] == ["Holdings", "Cost basis"]
-    assert port["secondary"][0]["value"] == "125.000000" and port["secondary"][0]["unit"] == "g"
+    assert port["secondary"][0]["value"] == "125.000" and port["secondary"][0]["unit"] == "g"
     assert port["pnl"]["label"] == "Unrealized PnL"
-    assert port["pnl"]["value"] == "+2,687.500000"
+    assert port["pnl"]["value"] == "+2,687.50"
 
 
 # Zone C — the Engine: secondary raw readings, sentiment colored by sign.
 def test_build_engine_readouts_order_and_sentiment_sign_color():
     eng = presenter.build_engine_readouts(_market(), THEME)
     assert [x["label"] for x in eng] == [
-        "RSI", "%B", "Sentiment", "Eff. buy spread", "Eff. sell spread"]
+        "RSI", "%B", "Trend R²", "Up-day ratio", "Price dev", "Volatility (CoV)",
+        "Sentiment", "Eff. buy spread", "Eff. sell spread"]
     sent = next(x for x in eng if x["label"] == "Sentiment")
     assert sent["value"] == "+1.2" and sent["color"] == THEME["buy"]
 
@@ -207,25 +210,29 @@ def test_verdict_shape_encodes_by_geometry_not_hue():
 
 def _signal_result():
     return {
-        "rsi_vote": -1, "vol_vote": -1, "gsr_vote": -1, "net_votes": -3,
+        "rsi_vote": -1, "vol_vote": -1, "gsr_vote": -1, "roc_vote": -1,
+        "trend_strength": 0.82, "net_votes": -4,
         "quant_bias": "SELL", "sentiment_score": 1.2, "sentiment_stale": False,
         "final_recommendation": "HOLD",
     }
 
 
-def test_build_signal_rows_maps_votes_to_three_rows():
-    inputs = {"rsi": 73.4, "percent_b": 1.04, "gsr": 88.8}
+def test_build_signal_rows_maps_votes_to_four_rows():
+    inputs = {"rsi": 73.4, "percent_b": 1.04, "gsr": 88.8, "roc": -0.03}
     rows = presenter.build_signal_rows(_signal_result(), inputs, THEME)
-    assert [r["label"] for r in rows] == ["RSI (14)", "Volatility band (%B)", "Gold / Silver Ratio"]
+    assert [r["label"] for r in rows] == [
+        "RSI (14)", "Volatility band (%B)", "Gold / Silver Ratio", "Momentum (ROC)"]
     assert rows[0]["vote_text"] == "-1"
     assert rows[0]["vote_color"] == THEME["sell"]
+    assert rows[3]["vote_text"] == "-1"
+    assert "downtrend" in rows[3]["detail"]
 
 
 def test_verdict_view_blanks_metal_word_on_hold_and_signs_net():
     view = presenter.verdict_view(_signal_result(), threshold=2, theme=THEME)
     assert view["word"] == "HOLD"
     assert view["metal_word"] == ""
-    assert view["net_signed"] == "-3"
+    assert view["net_signed"] == "-4"
     assert view["threshold"] == 2
     assert view["stale"] is False
     assert view["shape"] == "○"   # HOLD encodes by shape too, not just hue
@@ -329,6 +336,7 @@ def test_settings_groups_cover_keys_and_mask_api_keys():
     assert "spread_recency_alpha" not in by_key
     assert "spread_staleness_tau" not in by_key
     assert "default_buy_spread" in by_key
+    assert "momentum_r2_min" in by_key   # the new R²-gate knob is editable
     assert by_key["rsi_period"]["value"] == "14"
     assert by_key["GEMINI_API_KEY"]["type"] == "password"
 
@@ -370,9 +378,9 @@ def test_resolve_trade_amounts_garbage_is_zero():
 def test_trade_confirm_line_carries_all_fields():
     line = presenter.trade_confirm_line("BUY", "GOLD", 2.45, 1012.4, 413.22)
     assert "BUY" in line and "GOLD" in line
-    assert "2.450000" in line
-    assert "413.220000" in line
-    assert "1,012.400000" in line
+    assert "2.450" in line
+    assert "413.22" in line
+    assert "1,012.40" in line
 
 
 # --- recent trades + reversal ------------------------------------------------
@@ -426,7 +434,7 @@ def test_build_recent_trades_maps_color_and_opposite():
     assert buy_row["action"] == "BUY"
     assert buy_row["color"] == THEME["buy"]
     assert buy_row["opposite"] == "SELL"
-    assert buy_row["mass"] == "2.000000"
+    assert buy_row["mass"] == "2.000"
     assert buy_row["mass_grams"] == pytest.approx(2.0)
 
 
@@ -516,8 +524,8 @@ def test_build_recent_quotes_newest_first_with_raw_keys():
     rows = presenter.build_recent_quotes(quotes)
     assert rows[0]["date"] == "2026-06-24"   # newest first
     assert rows[0]["metal"] == "SILVER"
-    assert rows[0]["buy"] == "7.000000"
-    assert rows[1]["sell"] == "490.000000"
+    assert rows[0]["buy"] == "7.00"
+    assert rows[1]["sell"] == "490.00"
 
 
 def test_build_recent_quotes_empty_is_empty_list():

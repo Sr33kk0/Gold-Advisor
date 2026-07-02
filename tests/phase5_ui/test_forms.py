@@ -107,9 +107,9 @@ def test_recent_trades_render_as_description_list(tmp_path, monkeypatch):
     assert any(w.key == f"void_{tx_id}" for w in at.button)  # still interactive
 
 
-def test_void_controls_are_trade_specific(tmp_path, monkeypatch):
-    """The Void / confirm / cancel controls name the exact trade, so their
-    accessible names aren't the ambiguous repeated 'Void' / 'Cancel'."""
+def test_void_controls_use_static_labels_with_trade_in_help(tmp_path, monkeypatch):
+    """Buttons carry crisp static labels (never a truncating dynamic string);
+    the exact trade lives in the help tooltip and the adjacent row."""
     _seed(tmp_path / "audash.db")
     with get_db_connection(str(tmp_path / "audash.db")) as conn:
         tx_id = log_transaction(conn, "BUY", "GOLD", 400.0, 2.0, 800.0)
@@ -119,12 +119,12 @@ def test_void_controls_are_trade_specific(tmp_path, monkeypatch):
     at.radio[0].set_value("New Trade").run()
 
     void = _widget(at.button, f"void_{tx_id}")
-    assert void.label == "Void BUY GOLD…"
+    assert void.label == "Void…"
     assert void.help and "BUY GOLD" in void.help and "2026-" in void.help
 
     void.click().run()                                     # arm the confirmation
-    assert _widget(at.button, f"voidok_{tx_id}").label == "Void BUY GOLD"
-    assert _widget(at.button, f"voidcancel_{tx_id}").label == "Keep BUY GOLD"
+    assert _widget(at.button, f"voidok_{tx_id}").label == "Void trade"
+    assert _widget(at.button, f"voidcancel_{tx_id}").label == "Keep trade"
     assert not at.exception
 
 
