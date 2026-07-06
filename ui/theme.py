@@ -69,17 +69,20 @@ IDENTITY_CSS = f"""
 }}
 
 /* Verdict hero --------------------------------------------------------- */
+/* The conclusion is the largest element on the page (the design's Display
+   voice), sized to carry the panel's height as hierarchy rather than leave
+   it as dead charcoal under a small word. */
 .goldadvisor-verdict-word {{
     font-family: {THEME['f_display']};
     font-weight: 700;
-    font-size: 60px;
+    font-size: clamp(56px, 6.5vw, 84px);
     line-height: 0.9;
     letter-spacing: 0.01em;
 }}
 /* The verdict glyph (▲ ▼ ○) — shape-encodes the call beside the word/color. */
 .goldadvisor-verdict-shape {{
     font-family: {THEME['f_data']};
-    font-size: 28px;
+    font-size: clamp(28px, 3vw, 38px);
     line-height: 0.9;
 }}
 .goldadvisor-verdict-metal {{
@@ -335,9 +338,11 @@ IDENTITY_CSS = f"""
 
 /* Navigation + radio groups -------------------------------------------- */
 /* One segmented-control vocabulary for every radio (nav, metal, action,
-   enter-by): readable inactive labels (not disabled-looking), a clear
-   selected state, breathing room between segments. */
+   enter-by, chart range): flat text segments, no radio dot — the selected
+   segment is carried by the gold underline + weight, matching the design's
+   "three flat segments" nav. Semantics stay radio for assistive tech. */
 .stRadio [role="radiogroup"] {{ gap: 4px 18px; }}
+.stRadio label > div:first-child {{ display: none; }}
 .stRadio label p {{
     font-family: {THEME['f_ui']};
     font-size: 14px;
@@ -348,13 +353,27 @@ IDENTITY_CSS = f"""
     font-weight: 600;
 }}
 .stRadio label:hover p {{ color: {THEME['text']}; }}
-/* The top nav gets a gold underline on the active section so "where am I"
-   never depends on dimming alone. */
+/* Keyboard focus lands on the (visually hidden) input, so draw the global
+   gold ring around the segment's text instead — never an invisible focus. */
+.stRadio label:has(input:focus-visible) div[data-testid="stMarkdownContainer"] {{
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 2px;
+}}
 [data-testid="stRadio"]:has(> div > [aria-label="Navigation"]) {{ margin: 6px 0 14px; }}
+/* The gold underline marks the active segment, so "where am I" (nav) and
+   "what's selected" (forms) never depend on dimming alone. */
 .stRadio label:has(input:checked) div[data-testid="stMarkdownContainer"] {{
     box-shadow: inset 0 -2px 0 {THEME['accent']};
     padding-bottom: 2px;
 }}
+
+/* Entry surfaces --------------------------------------------------------- */
+/* New Trade / Daily Prices render inside a keyed container capped to a
+   focused reading column: full-bleed inputs for a two-field form read as
+   unfinished next to the crafted dashboard, and the ledger rows keep their
+   figures near their labels instead of scattering across 1200px. */
+.st-key-entry_surface {{ max-width: 720px; }}
 
 /* Inputs ---------------------------------------------------------------- */
 /* Legible labels over the fields (not microscopic slivers), mono digits

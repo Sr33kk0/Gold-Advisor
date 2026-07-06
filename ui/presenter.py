@@ -658,7 +658,13 @@ def _sentiment_text(snapshot: dict | None, age: float | None,
         return (f"{summary} — {age_txt}beyond the {max_age:g} d max. "
                 "Stale sentiment forces HOLD."), True
     if age is not None:
-        when = f"{age * 24:.0f} h ago" if age < 2.0 else f"{age:.1f} d ago"
+        hours = age * 24
+        if hours < 1:
+            when = "just now"
+        elif age < 2.0:
+            when = f"{hours:.0f} h ago"
+        else:
+            when = f"{age:.1f} d ago"
         return f"{summary} (as of {when})", False
     return summary, False
 

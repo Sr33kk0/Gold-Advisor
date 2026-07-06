@@ -139,12 +139,12 @@ def _readout_zones_html(market: dict, theme: dict) -> str:
     <section class="goldadvisor-bench">
       <div class="goldadvisor-bench-row">
         <div class="goldadvisor-zone">
-          <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Market · MYR/g · Asia/Kuala_Lumpur</div>
+          <div class="goldadvisor-sr-only" role="heading" aria-level="2">The Market · MYR/g · Asia/Kuala_Lumpur</div>
           <dl class="goldadvisor-readout">{market_rows}</dl>
         </div>
         <div class="goldadvisor-vrule" aria-hidden="true"></div>
         <div class="goldadvisor-zone goldadvisor-zone-portfolio">
-          <div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin-bottom:13px;">The Portfolio</div>
+          <div class="goldadvisor-sr-only" role="heading" aria-level="2">The Portfolio</div>
           <dl class="goldadvisor-readout goldadvisor-readout-stack">{port_rows}</dl>
           <div class="goldadvisor-pnl">
             <span class="goldadvisor-pnl-label">{p['label']}</span>
@@ -158,7 +158,7 @@ def _readout_zones_html(market: dict, theme: dict) -> str:
       </div>
       <div class="goldadvisor-hrule" aria-hidden="true"></div>
       <div class="goldadvisor-zone">
-        <div class="goldadvisor-eyebrow" role="heading" aria-level="3" style="margin-bottom:11px;">The Engine</div>
+        <div class="goldadvisor-sr-only" role="heading" aria-level="3">The Engine</div>
         <dl class="goldadvisor-engine">{eng_cells}</dl>
       </div>
     </section>"""
@@ -236,7 +236,9 @@ def render_dashboard(model: dict) -> None:
     st.markdown(_breakdown_gsr_html(rows, view, band, pos, svg),
                 unsafe_allow_html=True)
 
-    hdr, toggle = st.columns([3, 2])
+    # 2:3 keeps all five range segments on one line down to laptop widths;
+    # the eyebrow title wraps gracefully, a split segmented control doesn't.
+    hdr, toggle = st.columns([2, 3])
     with hdr:
         st.markdown('<div class="goldadvisor-eyebrow" role="heading" aria-level="2" style="margin:6px 0 8px;">'
                     'Gold spot · Bollinger channel · trade marks</div>',

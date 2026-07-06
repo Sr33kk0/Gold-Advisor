@@ -184,20 +184,26 @@ def _flash() -> None:
 # --- New Trade ---------------------------------------------------------------
 
 def render_ledger_input_form(model: dict) -> None:
-    """Two-step trade entry (review -> confirm) + the recent-trades ledger."""
-    _heading("New Trade", "Log a transaction",
-             "Confirmed before it joins the ledger. The derived value uses the "
-             "live platform rate; the ledger is append-only and corrected by "
-             "reversal, never erased.")
-    _flash()
+    """Two-step trade entry (review -> confirm) + the recent-trades ledger.
 
-    pending = st.session_state.get("pending_trade")
-    if pending:
-        _render_trade_confirm(pending)
-    else:
-        _render_trade_entry(model)
+    The whole surface lives in the `entry_surface` keyed container, which the
+    identity CSS caps to a focused column (inputs and ledger stay together
+    instead of stretching across the full dashboard width).
+    """
+    with st.container(key="entry_surface"):
+        _heading("New Trade", "Log a transaction",
+                 "Confirmed before it joins the ledger. The derived value uses "
+                 "the live platform rate; the ledger is append-only and "
+                 "corrected by reversal, never erased.")
+        _flash()
 
-    _render_recent_trades()
+        pending = st.session_state.get("pending_trade")
+        if pending:
+            _render_trade_confirm(pending)
+        else:
+            _render_trade_entry(model)
+
+        _render_recent_trades()
 
 
 def _render_backdated_rates(metal: str, action: str, trade_date,
@@ -478,33 +484,38 @@ def _render_void_confirm(row: dict) -> None:
 
 def render_daily_quotes_form(model: dict) -> None:
     """Record the platform's quoted buy/sell prices for a day (not a trade)."""
-    _heading("Daily Prices", "Record today's quote",
-             "The platform's quoted buy/sell prices for a day — no trade "
-             "required. Recorded quotes set the median default spread used on "
-             "days you don't enter one.")
-    _flash()
+    with st.container(key="entry_surface"):
+        _heading("Daily Prices", "Record today's quote",
+                 "The platform's quoted buy/sell prices for a day — no trade "
+                 "required. Recorded quotes set the median default spread used "
+                 "on days you don't enter one.")
+        _flash()
 
-    metal = st.radio("Metal", ["GOLD", "SILVER"], horizontal=True,
-                     key="quote_metal")
-    quote_date = st.date_input("Date", value=date.fromisoformat(model["today"]),
-                              key="quote_date")
-    buy_rate = st.number_input(
-        "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
-        key="quote_buy", help="Price you pay to buy (≈ spot + spread).")
-    sell_rate = st.number_input(
-        "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0, format="%.2f",
-        key="quote_sell", help="Price you receive to sell (≈ spot − spread).")
+        metal = st.radio("Metal", ["GOLD", "SILVER"], horizontal=True,
+                         key="quote_metal")
+        quote_date = st.date_input("Date",
+                                   value=date.fromisoformat(model["today"]),
+                                   key="quote_date")
+        buy_rate = st.number_input(
+            "Buy rate · MYR/g", min_value=0.0, value=0.0, step=1.0,
+            format="%.2f", key="quote_buy",
+            help="Price you pay to buy (≈ spot + spread).")
+        sell_rate = st.number_input(
+            "Sell rate · MYR/g", min_value=0.0, value=0.0, step=1.0,
+            format="%.2f", key="quote_sell",
+            help="Price you receive to sell (≈ spot − spread).")
 
-    _render_quote_preview(model, metal, buy_rate, sell_rate)
+        _render_quote_preview(model, metal, buy_rate, sell_rate)
 
-    st.button("Record quote", key="quote_submit", type="primary",
-              on_click=_commit_quote, args=(metal, quote_date, buy_rate, sell_rate))
+        st.button("Record quote", key="quote_submit", type="primary",
+                  on_click=_commit_quote,
+                  args=(metal, quote_date, buy_rate, sell_rate))
 
-    error = st.session_state.pop("_quote_error", None)
-    if error:
-        st.error(error)
+        error = st.session_state.pop("_quote_error", None)
+        if error:
+            st.error(error)
 
-    _render_recent_quotes()
+        _render_recent_quotes()
 
 
 def _render_quote_preview(model: dict, metal: str,
@@ -513,9 +524,12 @@ def _render_quote_preview(model: dict, metal: str,
     spot = model["spot_today"][metal]
     prev = presenter.quote_preview(buy_rate, sell_rate, spot)
 
+    n = info["n_quotes"]
+    source = ("configured default — no quotes recorded yet" if n == 0
+              else f"median of {n} quote{'' if n == 1 else 's'}")
     st.markdown(
         f'<div class="goldadvisor-eyebrow" style="margin-top:6px;">Current default '
-        f'spread · {metal.lower()} · median of {info["n_quotes"]} quote(s)</div>'
+        f'spread · {metal.lower()} · {source}</div>'
         f'<div class="goldadvisor-num" style="font-family:{THEME["f_data"]};'
         f'font-size:15px;color:{THEME["sub"]};margin-bottom:10px;">buy +'
         f'{presenter.fmt(info["buy_spread"])} / sell −'
